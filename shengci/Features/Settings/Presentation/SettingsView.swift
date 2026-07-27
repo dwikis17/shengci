@@ -69,147 +69,179 @@ struct SettingsView: View {
                 Color.creamBackground
                     .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        // Section Header
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("HSK Level (Exclusive)")
-                                .font(.title3.bold())
-                                .foregroundColor(Color.darkForeground)
-                            Text(
-                                "Select an HSK 3.0 level to update the vocabulary card feed."
-                            )
-                            .font(.subheadline)
-                            .foregroundColor(Color.darkForeground.opacity(0.6))
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 16)
-
-                        // Level Options List
-                        VStack(spacing: 12) {
-                            ForEach(hskLevels) { levelOption in
-                                Button {
-                                    withAnimation(.easeInOut) {
-                                        selectedHSKLevel = levelOption.id
-                                    }
-                                } label: {
-                                    HStack(spacing: 16) {
-                                        // Badge Icon
-                                        ZStack {
-                                            Circle()
-                                                .fill(
-                                                    levelOption.badgeColor
-                                                        .opacity(0.15)
-                                                )
-                                                .frame(width: 44, height: 44)
-
-                                            Text(
-                                                "\(levelOption.id == 7 ? "7-9" : "\(levelOption.id)")"
-                                            )
-                                            .font(.headline.bold())
-                                            .foregroundColor(
+                List {
+                    // MARK: - HSK Level Selection Section
+                    Section {
+                        ForEach(hskLevels) { levelOption in
+                            Button {
+                                withAnimation(.easeInOut) {
+                                    selectedHSKLevel = levelOption.id
+                                }
+                            } label: {
+                                HStack(spacing: 14) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(
                                                 levelOption.badgeColor
+                                                    .opacity(0.15)
                                             )
-                                        }
+                                            .frame(width: 38, height: 38)
 
-                                        VStack(
-                                            alignment: .leading,
-                                            spacing: 4
-                                        ) {
-                                            Text(levelOption.title)
-                                                .font(.headline)
-                                                .foregroundColor(
-                                                    Color.darkForeground
-                                                )
-
-                                            Text(levelOption.description)
-                                                .font(.caption)
-                                                .foregroundColor(
-                                                    Color.darkForeground
-                                                        .opacity(0.65)
-                                                )
-                                        }
-
-                                        Spacer()
-
-                                        if selectedHSKLevel == levelOption.id {
-                                            Image(
-                                                systemName: "checkmark.circle.fill"
-                                            )
-                                            .font(.title3)
-                                            .foregroundColor(
-                                                Color.royalBlueAccent
-                                            )
-                                        }
+                                        Text(
+                                            "\(levelOption.id == 7 ? "7-9" : "\(levelOption.id)")"
+                                        )
+                                        .font(.subheadline.bold())
+                                        .foregroundColor(
+                                            levelOption.badgeColor
+                                        )
                                     }
-                                    .padding(16)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .fill(Color.warmIvoryCard)
-                                            .shadow(
-                                                color: Color.black.opacity(
-                                                    selectedHSKLevel
-                                                        == levelOption.id
-                                                        ? 0.06 : 0.03
-                                                ),
-                                                radius: 8,
-                                                x: 0,
-                                                y: 2
+
+                                    VStack(
+                                        alignment: .leading,
+                                        spacing: 2
+                                    ) {
+                                        Text(levelOption.title)
+                                            .font(.body.weight(.semibold))
+                                            .foregroundColor(
+                                                Color.darkForeground
                                             )
-                                            .overlay(
-                                                RoundedRectangle(
-                                                    cornerRadius: 16
-                                                )
-                                                .stroke(
-                                                    selectedHSKLevel
-                                                        == levelOption.id
-                                                        ? Color.royalBlueAccent
-                                                            .opacity(0.6)
-                                                        : Color.black.opacity(
-                                                            0.05
-                                                        ),
-                                                    lineWidth: 1
-                                                )
+
+                                        Text(levelOption.description)
+                                            .font(.caption)
+                                            .foregroundColor(
+                                                Color.darkForeground
+                                                    .opacity(0.65)
                                             )
+                                    }
+
+                                    Spacer()
+
+                                    if selectedHSKLevel == levelOption.id {
+                                        Image(
+                                            systemName: "checkmark.circle.fill"
+                                        )
+                                        .font(.title3)
+                                        .foregroundColor(
+                                            Color.royalBlueAccent
+                                        )
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(Color.warmIvoryCard)
+                        }
+                    } header: {
+                        Text("HSK Level (Exclusive)")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
+                    } footer: {
+                        Text(
+                            "Select an HSK 3.0 level to update the vocabulary card feed on the Learn tab. Exclusive wordlists contain words unique to each HSK level."
+                        )
+                        .font(.caption)
+                        .foregroundColor(Color.darkForeground.opacity(0.55))
+                    }
+
+                    // MARK: - Saved Characters Navigation Section
+                    Section {
+                        NavigationLink {
+                            SavedWordsView()
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.roseAccent.opacity(0.15))
+                                        .frame(width: 38, height: 38)
+
+                                    Image(systemName: "bookmark.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(Color.roseAccent)
+                                }
+
+                                VStack(
+                                    alignment: .leading,
+                                    spacing: 2
+                                ) {
+                                    Text("Saved Characters")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundColor(
+                                            Color.darkForeground
+                                        )
+
+                                    Text(
+                                        "View and listen to your saved words"
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(
+                                        Color.darkForeground
+                                            .opacity(0.65)
                                     )
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .listRowBackground(Color.warmIvoryCard)
+                    } header: {
+                        Text("Saved")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
+                    }
 
-                        // About Section Card
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "info.circle.fill")
-                                    .foregroundColor(Color.royalBlueAccent)
-                                Text("About Wordlists")
-                                    .font(.headline)
-                                    .foregroundColor(Color.darkForeground)
-                            }
-
-                            Text(
-                                "Exclusive wordlists contain words unique to each HSK level without repeating words from lower levels. HSK 7-9 covers advanced vocabulary under HSK 3.0 standards."
+                    // MARK: - Search Navigation Section
+                    Section {
+                        NavigationLink {
+                            PlaceholderTabView(
+                                title: "Vocabulary Search",
+                                icon: "magnifyingglass",
+                                description:
+                                    "Search HSK words by Pinyin, English, or Chinese characters."
                             )
-                            .font(.caption)
-                            .foregroundColor(Color.darkForeground.opacity(0.7))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .navigationTitle("Search")
+                            .navigationBarTitleDisplayMode(.inline)
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            Color.royalBlueAccent.opacity(0.15)
+                                        )
+                                        .frame(width: 38, height: 38)
+
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(Color.royalBlueAccent)
+                                }
+
+                                VStack(
+                                    alignment: .leading,
+                                    spacing: 2
+                                ) {
+                                    Text("Vocabulary Search")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundColor(
+                                            Color.darkForeground
+                                        )
+
+                                    Text(
+                                        "Search HSK words by Pinyin or English"
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(
+                                        Color.darkForeground
+                                            .opacity(0.65)
+                                    )
+                                }
+                            }
                         }
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.warmIvoryCard)
-                                .shadow(
-                                    color: Color.black.opacity(0.04),
-                                    radius: 6,
-                                    x: 0,
-                                    y: 2
-                                )
-                        )
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 40)
+                        .listRowBackground(Color.warmIvoryCard)
+                    } header: {
+                        Text("Search")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
                     }
                 }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

@@ -14,8 +14,6 @@ struct ContentView: View {
 
     enum Tab: Hashable {
         case home
-        case search
-        case saved
         case settings
     }
 
@@ -41,23 +39,6 @@ struct ContentView: View {
                 }
                 .tag(Tab.home)
 
-            PlaceholderTabView(
-                title: "Vocabulary Search",
-                icon: "magnifyingglass",
-                description:
-                    "Search HSK words by Pinyin, English, or Chinese characters."
-            )
-            .tabItem {
-                Label("Search", systemImage: "magnifyingglass")
-            }
-            .tag(Tab.search)
-
-            SavedWordsView()
-                .tabItem {
-                    Label("Saved", systemImage: "heart.fill")
-                }
-                .tag(Tab.saved)
-
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
@@ -75,99 +56,97 @@ struct SavedWordsView: View {
         [SavedWord]
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.creamBackground
-                    .ignoresSafeArea()
+        ZStack {
+            Color.creamBackground
+                .ignoresSafeArea()
 
-                if savedWords.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "bookmark.slash")
-                            .font(.system(size: 48))
-                            .foregroundColor(Color.darkForeground.opacity(0.35))
-                        Text("No Saved Characters")
-                            .font(.headline)
-                            .foregroundColor(Color.darkForeground)
-                        Text(
-                            "Tap the bookmark icon on any word card to save characters here."
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(Color.darkForeground.opacity(0.6))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                    }
-                } else {
-                    List {
-                        ForEach(savedWords) { item in
-                            HStack(spacing: 16) {
-                                Text(item.simplified)
-                                    .font(
-                                        .system(
-                                            size: 36,
-                                            weight: .bold,
-                                            design: .serif
-                                        )
+            if savedWords.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "bookmark.slash")
+                        .font(.system(size: 48))
+                        .foregroundColor(Color.darkForeground.opacity(0.35))
+                    Text("No Saved Characters")
+                        .font(.headline)
+                        .foregroundColor(Color.darkForeground)
+                    Text(
+                        "Tap the bookmark icon on any word card to save characters here."
+                    )
+                    .font(.subheadline)
+                    .foregroundColor(Color.darkForeground.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                }
+            } else {
+                List {
+                    ForEach(savedWords) { item in
+                        HStack(spacing: 16) {
+                            Text(item.simplified)
+                                .font(
+                                    .system(
+                                        size: 36,
+                                        weight: .bold,
+                                        design: .serif
                                     )
-                                    .foregroundColor(Color.darkForeground)
+                                )
+                                .foregroundColor(Color.darkForeground)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 8) {
-                                        Text(item.pinyin)
-                                            .font(.headline)
-                                            .foregroundColor(Color.royalBlueAccent)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 8) {
+                                    Text(item.pinyin)
+                                        .font(.headline)
+                                        .foregroundColor(Color.royalBlueAccent)
 
-                                        if !item.traditional.isEmpty
-                                            && item.traditional
-                                                != item.simplified
-                                        {
-                                            Text("(\(item.traditional))")
-                                                .font(.subheadline)
-                                                .foregroundColor(
-                                                    Color.darkForeground.opacity(0.5)
-                                                )
-                                        }
-                                    }
-
-                                    if !item.meanings.isEmpty {
-                                        Text(item.meanings.joined(separator: ", "))
+                                    if !item.traditional.isEmpty
+                                        && item.traditional
+                                            != item.simplified
+                                    {
+                                        Text("(\(item.traditional))")
                                             .font(.subheadline)
                                             .foregroundColor(
-                                                Color.darkForeground.opacity(0.75)
+                                                Color.darkForeground.opacity(0.5)
                                             )
-                                            .lineLimit(2)
                                     }
                                 }
 
-                                Spacer()
-
-                                Button {
-                                    SpeechSynthesizerManager.shared.speak(
-                                        item.simplified
-                                    )
-                                } label: {
-                                    Image(
-                                        systemName: "speaker.wave.2.fill"
-                                    )
-                                    .font(.title3)
-                                    .foregroundColor(Color.royalBlueAccent)
+                                if !item.meanings.isEmpty {
+                                    Text(item.meanings.joined(separator: ", "))
+                                        .font(.subheadline)
+                                        .foregroundColor(
+                                            Color.darkForeground.opacity(0.75)
+                                        )
+                                        .lineLimit(2)
                                 }
-                                .buttonStyle(.plain)
                             }
-                            .listRowBackground(Color.warmIvoryCard)
+
+                            Spacer()
+
+                            Button {
+                                SpeechSynthesizerManager.shared.speak(
+                                    item.simplified
+                                )
+                            } label: {
+                                Image(
+                                    systemName: "speaker.wave.2.fill"
+                                )
+                                .font(.title3)
+                                .foregroundColor(Color.royalBlueAccent)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .onDelete(perform: deleteSavedWords)
+                        .listRowBackground(Color.warmIvoryCard)
                     }
-                    .scrollContentBackground(.hidden)
+                    .onDelete(perform: deleteSavedWords)
                 }
+                .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Saved Characters (\(savedWords.count))")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(
-                Color.creamBackground,
-                for: .navigationBar
-            )
-            .toolbarColorScheme(.light, for: .navigationBar)
         }
+        .navigationTitle("Saved Characters (\(savedWords.count))")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(
+            Color.creamBackground,
+            for: .navigationBar
+        )
+        .toolbarColorScheme(.light, for: .navigationBar)
     }
 
     private func deleteSavedWords(offsets: IndexSet) {
