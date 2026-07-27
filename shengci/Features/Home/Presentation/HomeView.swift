@@ -162,10 +162,10 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(Color.indigoAccent.opacity(0.3)))
+                    .background(.ultraThinMaterial, in: Capsule())
                     .overlay(
                         Capsule().stroke(
-                            Color.indigoAccent.opacity(0.6),
+                            Color.indigoAccent.opacity(0.5),
                             lineWidth: 1
                         )
                     )
@@ -173,13 +173,19 @@ struct HomeView: View {
 
                     Spacer()
 
-                    // Counter Badge
+                    // Counter Badge (Ultra Thin Material)
                     Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
                         .font(.caption.monospacedDigit().bold())
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(Color.white.opacity(0.12)))
-                        .foregroundColor(.white.opacity(0.85))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(
+                            Capsule().stroke(
+                                Color.white.opacity(0.15),
+                                lineWidth: 0.5
+                            )
+                        )
+                        .foregroundColor(.white)
                 }
                 .padding(.horizontal, 24)
                 .allowsHitTesting(false)
