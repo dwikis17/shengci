@@ -14,6 +14,7 @@ struct ContentView: View {
 
     enum AppTab: Hashable {
         case home
+        case practice
         case settings
     }
 
@@ -38,6 +39,10 @@ struct ContentView: View {
                     HomeView()
                 }
 
+                Tab("Practice", systemImage: "brain.head.profile", value: AppTab.practice) {
+                    PracticeView()
+                }
+
                 Tab("Settings", systemImage: "gearshape.fill", value: AppTab.settings, role: .search) {
                     SettingsView()
                 }
@@ -50,6 +55,12 @@ struct ContentView: View {
                         Label("Learn", systemImage: "play.rectangle.fill")
                     }
                     .tag(AppTab.home)
+
+                PracticeView()
+                    .tabItem {
+                        Label("Practice", systemImage: "brain.head.profile")
+                    }
+                    .tag(AppTab.practice)
 
                 SettingsView()
                     .tabItem {

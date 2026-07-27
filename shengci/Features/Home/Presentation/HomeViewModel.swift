@@ -44,9 +44,11 @@ final class HomeViewModel: ObservableObject {
                 let decoder = JSONDecoder()
                 let words = try decoder.decode([WordModel].self, from: data)
 
+                guard self.currentLevel == level else { return }
                 self.wordList = words
                 self.isLoading = false
             } catch {
+                guard self.currentLevel == level else { return }
                 self.errorMessage =
                     "Failed to load HSK \(level) vocabulary: \(error.localizedDescription)"
                 self.isLoading = false

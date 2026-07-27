@@ -9,11 +9,57 @@ import Testing
 @testable import shengci
 
 struct shengciTests {
+    @Test func quizUsesUniqueEligibleWordsAndLimitsSessionLength() {
+        let words = (0..<12).map { word("字\($0)", meanings: ["meaning \($0)"]) }
+            + [word("empty", meanings: [])]
 
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-        // Swift Testing Documentation
-        // https://developer.apple.com/documentation/testing
+        let questions = PracticeQuiz.makeQuestions(from: words)
+
+        #expect(questions.count == 10)
+        #expect(Set(questions.map(\.word.simplified)).count == questions.count)
+        #expect(!questions.contains { $0.word.simplified == "empty" })
     }
 
+    @Test func acceptsEveryPrimaryMeaningAsCorrect() {
+        let target = word("好", meanings: ["good", "well"])
+        let question = PracticeQuestion(word: target, choices: ["good"])
+
+        #expect(question.isCorrect("good"))
+        #expect(question.isCorrect("well"))
+        #expect(!question.isCorrect("bad"))
+    }
+
+    @Test func choicesUseSameLevelWordsAndStaySafeWhenUndersized() {
+        let target = word("你", meanings: ["you"])
+        let peer = word("我", meanings: ["I"])
+        let choices = PracticeQuiz.choices(for: target, from: [target, peer])
+
+        #expect(choices.contains("you"))
+        #expect(Set(choices).isSubset(of: Set(["you", "I"])))
+        #expect(choices.count == 2)
+        #expect(PracticeQuiz.makeQuestions(from: []).isEmpty)
+    }
+
+    private func word(_ simplified: String, meanings: [String]) -> WordModel {
+        WordModel(
+            simplified: simplified,
+            radical: "",
+            frequency: 0,
+            pos: [],
+            forms: [
+                WordForm(
+                    traditional: simplified,
+                    transcriptions: WordTranscription(
+                        pinyin: "pinyin",
+                        numeric: "",
+                        wadegiles: "",
+                        bopomofo: "",
+                        romatzyh: ""
+                    ),
+                    meanings: meanings,
+                    classifiers: []
+                )
+            ]
+        )
+    }
 }
