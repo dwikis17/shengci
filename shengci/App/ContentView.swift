@@ -23,9 +23,9 @@ struct ContentView: View {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(
-            red: 0.07,
-            green: 0.09,
-            blue: 0.15,
+            red: 0.97,
+            green: 0.95,
+            blue: 0.92,
             alpha: 0.95
         )
 
@@ -54,20 +54,21 @@ struct ContentView: View {
 
             SavedWordsView()
                 .tabItem {
-                    Label("Saved", systemImage: "bookmark")
+                    Label("Saved", systemImage: "heart.fill")
                 }
                 .tag(Tab.saved)
 
             SettingsView()
                 .tabItem {
-                    Label("Settings", systemImage: "gearshape")
+                    Label("Settings", systemImage: "gearshape.fill")
                 }
                 .tag(Tab.settings)
         }
+        .tint(Color.royalBlueAccent)
     }
 }
 
-// MARK: - Saved Words SwiftData View
+// MARK: - Saved Words SwiftData View (Cream theme)
 struct SavedWordsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SavedWord.savedAt, order: .reverse) private var savedWords:
@@ -76,29 +77,22 @@ struct SavedWordsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.07, green: 0.09, blue: 0.15),
-                        Color(red: 0.12, green: 0.10, blue: 0.22),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                Color.creamBackground
+                    .ignoresSafeArea()
 
                 if savedWords.isEmpty {
                     VStack(spacing: 12) {
-                        Image(systemName: "heart.slash")
+                        Image(systemName: "bookmark.slash")
                             .font(.system(size: 48))
-                            .foregroundColor(.white.opacity(0.4))
+                            .foregroundColor(Color.darkForeground.opacity(0.35))
                         Text("No Saved Characters")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.darkForeground)
                         Text(
-                            "Tap the heart icon on any word card to save characters here."
+                            "Tap the bookmark icon on any word card to save characters here."
                         )
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(Color.darkForeground.opacity(0.6))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                     }
@@ -114,19 +108,13 @@ struct SavedWordsView: View {
                                             design: .serif
                                         )
                                     )
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.darkForeground)
 
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 8) {
                                         Text(item.pinyin)
                                             .font(.headline)
-                                            .foregroundColor(
-                                                Color(
-                                                    red: 0.25,
-                                                    green: 0.82,
-                                                    blue: 0.98
-                                                )
-                                            )
+                                            .foregroundColor(Color.royalBlueAccent)
 
                                         if !item.traditional.isEmpty
                                             && item.traditional
@@ -135,7 +123,7 @@ struct SavedWordsView: View {
                                             Text("(\(item.traditional))")
                                                 .font(.subheadline)
                                                 .foregroundColor(
-                                                    .white.opacity(0.6)
+                                                    Color.darkForeground.opacity(0.5)
                                                 )
                                         }
                                     }
@@ -144,7 +132,7 @@ struct SavedWordsView: View {
                                         Text(item.meanings.joined(separator: ", "))
                                             .font(.subheadline)
                                             .foregroundColor(
-                                                .white.opacity(0.8)
+                                                Color.darkForeground.opacity(0.75)
                                             )
                                             .lineLimit(2)
                                     }
@@ -161,17 +149,11 @@ struct SavedWordsView: View {
                                         systemName: "speaker.wave.2.fill"
                                     )
                                     .font(.title3)
-                                    .foregroundColor(
-                                        Color(
-                                            red: 0.38,
-                                            green: 0.35,
-                                            blue: 0.95
-                                        )
-                                    )
+                                    .foregroundColor(Color.royalBlueAccent)
                                 }
                                 .buttonStyle(.plain)
                             }
-                            .listRowBackground(Color.white.opacity(0.06))
+                            .listRowBackground(Color.warmIvoryCard)
                         }
                         .onDelete(perform: deleteSavedWords)
                     }
@@ -181,10 +163,10 @@ struct SavedWordsView: View {
             .navigationTitle("Saved Characters (\(savedWords.count))")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(
-                Color(red: 0.07, green: 0.09, blue: 0.15),
+                Color.creamBackground,
                 for: .navigationBar
             )
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
         }
     }
 
@@ -195,7 +177,7 @@ struct SavedWordsView: View {
     }
 }
 
-// MARK: - Placeholder Tab View
+// MARK: - Placeholder Tab View (Cream theme)
 struct PlaceholderTabView: View {
     let title: String
     let icon: String
@@ -203,28 +185,21 @@ struct PlaceholderTabView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.07, green: 0.09, blue: 0.15),
-                    Color(red: 0.12, green: 0.10, blue: 0.22),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color.creamBackground
+                .ignoresSafeArea()
 
             VStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 56))
-                    .foregroundColor(Color(red: 0.25, green: 0.82, blue: 0.98))
+                    .foregroundColor(Color.royalBlueAccent)
 
                 Text(title)
                     .font(.title2.bold())
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.darkForeground)
 
                 Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(Color.darkForeground.opacity(0.65))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }

@@ -70,26 +70,20 @@ struct HomeView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.07, green: 0.09, blue: 0.15),
-                    Color(red: 0.12, green: 0.10, blue: 0.22),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // Warm Cream Background
+            Color.creamBackground
+                .ignoresSafeArea()
 
             if viewModel.isLoading {
                 VStack(spacing: 16) {
                     ProgressView()
                         .scaleEffect(1.3)
-                        .tint(.white)
+                        .tint(Color.darkForeground)
                     Text(
                         "Loading HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)") Vocabulary..."
                     )
                     .font(.headline)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(Color.darkForeground.opacity(0.8))
                 }
                 .frame(maxHeight: .infinity)
             } else if let error = viewModel.errorMessage {
@@ -99,7 +93,7 @@ struct HomeView: View {
                         .foregroundColor(.amberAccent)
                     Text(error)
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(Color.darkForeground.opacity(0.9))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                     Button {
@@ -109,7 +103,7 @@ struct HomeView: View {
                             .font(.headline)
                             .padding(.horizontal, 24)
                             .padding(.vertical, 12)
-                            .background(Capsule().fill(Color.indigoAccent))
+                            .background(Capsule().fill(Color.royalBlueAccent))
                             .foregroundColor(.white)
                     }
                 }
@@ -118,10 +112,10 @@ struct HomeView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "text.book.closed")
                         .font(.system(size: 48))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundColor(Color.darkForeground.opacity(0.5))
                     Text("No words available")
                         .font(.headline)
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(Color.darkForeground.opacity(0.7))
                 }
                 .frame(maxHeight: .infinity)
             } else {
@@ -165,15 +159,15 @@ struct HomeView: View {
                     .background(.ultraThinMaterial, in: Capsule())
                     .overlay(
                         Capsule().stroke(
-                            Color.indigoAccent.opacity(0.5),
+                            Color.black.opacity(0.1),
                             lineWidth: 1
                         )
                     )
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.darkForeground)
 
                     Spacer()
 
-                    // Counter Badge (Ultra Thin Material)
+                    // Counter Badge (Ultra Thin Material, dark text)
                     Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
                         .font(.caption.monospacedDigit().bold())
                         .padding(.horizontal, 12)
@@ -181,11 +175,11 @@ struct HomeView: View {
                         .background(.ultraThinMaterial, in: Capsule())
                         .overlay(
                             Capsule().stroke(
-                                Color.white.opacity(0.15),
+                                Color.black.opacity(0.1),
                                 lineWidth: 0.5
                             )
                         )
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.darkForeground)
                 }
                 .padding(.horizontal, 24)
                 .allowsHitTesting(false)
@@ -254,28 +248,22 @@ struct WordCardView: View {
                             .font(
                                 .system(
                                     size: 28,
-                                    weight: .medium,
+                                    weight: .semibold,
                                     design: .rounded
                                 )
                             )
-                            .foregroundColor(Color.cyanAccent)
-                            .shadow(
-                                color: Color.cyanAccent.opacity(0.4),
-                                radius: 8,
-                                x: 0,
-                                y: 2
-                            )
+                            .foregroundColor(Color.royalBlueAccent)
                     }
 
-                    // Simplified Chinese Character
+                    // Simplified Chinese Character (Espresso Charcoal foreground)
                     Text(word.simplified)
                         .font(.system(size: 96, weight: .bold, design: .serif))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.darkForeground)
                         .shadow(
-                            color: .black.opacity(0.5),
-                            radius: 10,
+                            color: Color.black.opacity(0.05),
+                            radius: 6,
                             x: 0,
-                            y: 4
+                            y: 3
                         )
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
@@ -292,7 +280,7 @@ struct WordCardView: View {
                                 Text("繁")
                                     .font(.caption2.bold())
                                     .padding(3)
-                                    .background(Color.white.opacity(0.2))
+                                    .background(Color.black.opacity(0.06))
                                     .cornerRadius(4)
                                 Text(trad)
                                     .font(.system(size: 16, weight: .medium))
@@ -300,28 +288,28 @@ struct WordCardView: View {
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
                             .background(
-                                Capsule().fill(Color.white.opacity(0.1))
+                                Capsule().fill(Color.black.opacity(0.04))
                             )
-                            .foregroundColor(.white.opacity(0.9))
+                            .foregroundColor(Color.darkForeground.opacity(0.85))
                         }
 
                         // Radical Pill
                         HStack(spacing: 4) {
                             Text("部首")
                                 .font(.caption2.bold())
-                                .foregroundColor(.white.opacity(0.6))
+                                .foregroundColor(Color.darkForeground.opacity(0.5))
                             Text(word.radical)
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.amberAccent)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.white.opacity(0.1)))
+                        .background(Capsule().fill(Color.black.opacity(0.04)))
                     }
                 }
                 .padding(.vertical, 20)
 
-                // Meanings & Metadata Glass Card
+                // Meanings & Metadata Glass Card (Warm Ivory card with soft shadow)
                 VStack(alignment: .leading, spacing: 14) {
                     // Part of Speech Badges
                     if !word.pos.isEmpty {
@@ -334,16 +322,16 @@ struct WordCardView: View {
                                         .padding(.vertical, 4)
                                         .background(
                                             Capsule().fill(
-                                                Color.tealAccent.opacity(0.25)
+                                                Color.royalBlueAccent.opacity(0.10)
                                             )
                                         )
                                         .overlay(
                                             Capsule().stroke(
-                                                Color.tealAccent.opacity(0.5),
+                                                Color.royalBlueAccent.opacity(0.25),
                                                 lineWidth: 1
                                             )
                                         )
-                                        .foregroundColor(.tealAccent)
+                                        .foregroundColor(Color.royalBlueAccent)
                                 }
 
                                 Text("Freq #\(word.frequency)")
@@ -351,9 +339,9 @@ struct WordCardView: View {
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 4)
                                     .background(
-                                        Capsule().fill(Color.white.opacity(0.1))
+                                        Capsule().fill(Color.black.opacity(0.04))
                                     )
-                                    .foregroundColor(.white.opacity(0.7))
+                                    .foregroundColor(Color.darkForeground.opacity(0.6))
                             }
                         }
                     }
@@ -368,10 +356,10 @@ struct WordCardView: View {
                                 HStack(alignment: .top, spacing: 8) {
                                     Text("\(idx + 1).")
                                         .font(.subheadline.bold())
-                                        .foregroundColor(Color.cyanAccent)
+                                        .foregroundColor(Color.royalBlueAccent)
                                     Text(meaning)
                                         .font(.subheadline)
-                                        .foregroundColor(.white.opacity(0.95))
+                                        .foregroundColor(Color.darkForeground.opacity(0.9))
                                         .fixedSize(
                                             horizontal: false,
                                             vertical: true
@@ -388,7 +376,7 @@ struct WordCardView: View {
                         HStack(spacing: 6) {
                             Text("Classifiers:")
                                 .font(.caption.bold())
-                                .foregroundColor(.white.opacity(0.6))
+                                .foregroundColor(Color.darkForeground.opacity(0.5))
                             ForEach(classifiers, id: \.self) { classifier in
                                 Text(classifier)
                                     .font(.caption.bold())
@@ -396,10 +384,10 @@ struct WordCardView: View {
                                     .padding(.vertical, 3)
                                     .background(
                                         RoundedRectangle(cornerRadius: 6).fill(
-                                            Color.white.opacity(0.15)
+                                            Color.black.opacity(0.05)
                                         )
                                     )
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.darkForeground)
                             }
                         }
                         .padding(.top, 2)
@@ -407,7 +395,7 @@ struct WordCardView: View {
 
                     // Divider
                     Rectangle()
-                        .fill(Color.white.opacity(0.12))
+                        .fill(Color.black.opacity(0.06))
                         .frame(height: 1)
                         .padding(.vertical, 2)
 
@@ -427,7 +415,7 @@ struct WordCardView: View {
                                 )
                                 .font(.subheadline)
                             }
-                            .foregroundColor(.white)
+                            .foregroundColor(isSpeaking ? Color.royalBlueAccent : Color.darkForeground)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
                         }
@@ -445,7 +433,7 @@ struct WordCardView: View {
                                 )
                                 .font(.subheadline)
                                 .foregroundColor(
-                                    isBookmarked ? .roseAccent : .white
+                                    isBookmarked ? .roseAccent : Color.darkForeground
                                 )
                             }
                             .padding(.horizontal, 14)
@@ -472,7 +460,7 @@ struct WordCardView: View {
                                 )
                                 .font(.subheadline)
                                 .foregroundColor(
-                                    copiedFeedback ? .tealAccent : .white
+                                    copiedFeedback ? Color.tealAccent : Color.darkForeground
                                 )
                             }
                             .padding(.horizontal, 14)
@@ -486,10 +474,16 @@ struct WordCardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(Color.white.opacity(0.08))
+                        .fill(Color.warmIvoryCard)
+                        .shadow(
+                            color: Color.black.opacity(0.05),
+                            radius: 16,
+                            x: 0,
+                            y: 6
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 24)
-                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                                .stroke(Color.black.opacity(0.05), lineWidth: 1)
                         )
                 )
                 .padding(.horizontal, 24)
@@ -500,10 +494,10 @@ struct WordCardView: View {
                 VStack(spacing: 4) {
                     Image(systemName: "chevron.up")
                         .font(.caption.bold())
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundColor(Color.darkForeground.opacity(0.35))
                     Text("Swipe for next word")
                         .font(.caption2)
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundColor(Color.darkForeground.opacity(0.35))
                 }
                 .padding(.bottom, 40)
             }
@@ -520,33 +514,15 @@ struct WordCardView: View {
     }
 }
 
-// MARK: - Color Accents Extension
+// MARK: - Cream Theme Color Palette Extension
 extension Color {
-    fileprivate static let indigoAccent = Color(
-        red: 0.38,
-        green: 0.35,
-        blue: 0.95
-    )
-    fileprivate static let cyanAccent = Color(
-        red: 0.25,
-        green: 0.82,
-        blue: 0.98
-    )
-    fileprivate static let tealAccent = Color(
-        red: 0.20,
-        green: 0.85,
-        blue: 0.70
-    )
-    fileprivate static let amberAccent = Color(
-        red: 0.98,
-        green: 0.72,
-        blue: 0.25
-    )
-    fileprivate static let roseAccent = Color(
-        red: 0.96,
-        green: 0.32,
-        blue: 0.45
-    )
+    static let creamBackground = Color(red: 0.97, green: 0.95, blue: 0.92) // #FAF2EA Warm Cream
+    static let warmIvoryCard   = Color(red: 1.0, green: 0.99, blue: 0.97)   // Soft Ivory White
+    static let darkForeground   = Color(red: 0.15, green: 0.13, blue: 0.12)  // Deep Espresso Charcoal
+    static let royalBlueAccent  = Color(red: 0.20, green: 0.40, blue: 0.80)  // Slate Royal Blue
+    static let tealAccent       = Color(red: 0.12, green: 0.60, blue: 0.50)  // Warm Sage Teal
+    static let amberAccent      = Color(red: 0.82, green: 0.50, blue: 0.10)  // Terracotta Amber
+    static let roseAccent       = Color(red: 0.85, green: 0.25, blue: 0.32)  // Crimson Rose
 }
 
 #Preview {
