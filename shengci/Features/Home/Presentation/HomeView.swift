@@ -8,6 +8,31 @@
 import AVFoundation
 import SwiftData
 import SwiftUI
+import UIKit
+
+// MARK: - Haptic Feedback Manager
+final class HapticManager {
+    static let shared = HapticManager()
+    private init() {}
+
+    func impact(style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+        let generator = UIImpactFeedbackGenerator(style: style)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+
+    func notification(type: UINotificationFeedbackGenerator.FeedbackType) {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(type)
+    }
+
+    func selection() {
+        let generator = UISelectionFeedbackGenerator()
+        generator.prepare()
+        generator.selectionChanged()
+    }
+}
 
 // MARK: - Text-To-Speech Manager
 final class SpeechSynthesizerManager {
@@ -167,7 +192,9 @@ struct HomeView: View {
             viewModel.loadWords(level: newLevel)
         }
         .onChange(of: viewModel.wordList) { newList in
-            if currentWordID == nil || !newList.contains(where: { $0.id == currentWordID }) {
+            if currentWordID == nil
+                || !newList.contains(where: { $0.id == currentWordID })
+            {
                 currentWordID = newList.first?.id
             }
         }
@@ -178,6 +205,7 @@ struct HomeView: View {
     }
 
     private func toggleBookmark(for word: WordModel) {
+        HapticManager.shared.impact(style: .medium)
         if let existing = savedWords.first(where: {
             $0.simplified == word.simplified
         }) {
@@ -415,9 +443,10 @@ struct WordCardView: View {
 
                         Spacer()
 
-                        // Copy Button (Copies only Hanzi)
+                        // Copy Button (Copies only Hanzi with Haptic Feedback)
                         Button {
                             UIPasteboard.general.string = word.simplified
+                            HapticManager.shared.notification(type: .success)
                             copiedFeedback = true
                             DispatchQueue.main.asyncAfter(
                                 deadline: .now() + 1.5
@@ -472,6 +501,7 @@ struct WordCardView: View {
 
     private func playAudio() {
         isSpeaking = true
+        HapticManager.shared.impact(style: .light)
         SpeechSynthesizerManager.shared.speak(word.simplified)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             isSpeaking = false
