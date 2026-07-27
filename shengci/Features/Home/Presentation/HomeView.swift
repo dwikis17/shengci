@@ -33,7 +33,6 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            // Background gradient
             LinearGradient(
                 colors: [
                     Color(red: 0.07, green: 0.09, blue: 0.15),
@@ -346,6 +345,88 @@ struct WordCardView: View {
                         }
                         .padding(.top, 2)
                     }
+
+                    // Divider
+                    Rectangle()
+                        .fill(Color.white.opacity(0.12))
+                        .frame(height: 1)
+                        .padding(.vertical, 2)
+
+                    // Horizontal Action Buttons (Audio, Save, Copy) below meanings
+                    HStack {
+                        Spacer()
+
+                        // Audio Button
+                        Button {
+                            playAudio()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(
+                                    systemName: isSpeaking
+                                        ? "speaker.wave.3.fill"
+                                        : "speaker.wave.2.fill"
+                                )
+                             
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                        
+                        }
+
+                        Spacer()
+
+                        // Bookmark / Save Button
+                        Button {
+                            onToggleBookmark()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(
+                                    systemName: isBookmarked
+                                        ? "bookmark.fill" : "bookmark"
+                                )
+                                .font(.subheadline)
+                                .foregroundColor(
+                                    isBookmarked ? .roseAccent : .white
+                                )
+                              
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                        }
+
+                        Spacer()
+
+                
+                        Button {
+                            UIPasteboard.general.string =
+                                "\(word.simplified) (\(primaryForm?.transcriptions.pinyin ?? "")): \(primaryForm?.meanings.joined(separator: "; ") ?? "")"
+                            copiedFeedback = true
+                            DispatchQueue.main.asyncAfter(
+                                deadline: .now() + 1.5
+                            ) {
+                                copiedFeedback = false
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(
+                                    systemName: copiedFeedback
+                                        ? "checkmark" : "doc.on.doc"
+                                )
+                                .font(.subheadline)
+                                .foregroundColor(
+                                    copiedFeedback ? .tealAccent : .white
+                                )
+    
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                           
+                        }
+                
+
+                        Spacer()
+                    }
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -372,90 +453,6 @@ struct WordCardView: View {
                 }
                 .padding(.bottom, 40)
             }
-
-            // Floating Right Action Sidebar (TikTok style)
-            VStack(spacing: 20) {
-                Spacer()
-
-                // Audio / Sound Button
-                Button {
-                    playAudio()
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(
-                            systemName: isSpeaking
-                                ? "speaker.wave.3.fill" : "speaker.wave.2.fill"
-                        )
-                        .font(.title3)
-                        .foregroundColor(.white)
-                        .frame(width: 48, height: 48)
-                        .background(
-                            Circle().fill(
-                                isSpeaking
-                                    ? Color.cyanAccent : Color.indigoAccent
-                            )
-                        )
-                        .shadow(
-                            color: isSpeaking
-                                ? Color.cyanAccent.opacity(0.7)
-                                : Color.indigoAccent.opacity(0.5),
-                            radius: 6
-                        )
-                        Text("Audio")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                }
-
-                // Bookmark Button (SwiftData driven)
-                Button {
-                    onToggleBookmark()
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: isBookmarked ? "heart.fill" : "heart")
-                            .font(.title3)
-                            .foregroundColor(
-                                isBookmarked ? .roseAccent : .white
-                            )
-                            .frame(width: 48, height: 48)
-                            .background(
-                                Circle().fill(Color.white.opacity(0.12))
-                            )
-                        Text(isBookmarked ? "Saved" : "Save")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                }
-
-                // Copy/Share Button
-                Button {
-                    UIPasteboard.general.string =
-                        "\(word.simplified) (\(primaryForm?.transcriptions.pinyin ?? "")): \(primaryForm?.meanings.joined(separator: "; ") ?? "")"
-                    copiedFeedback = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        copiedFeedback = false
-                    }
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(
-                            systemName: copiedFeedback
-                                ? "checkmark" : "doc.on.doc"
-                        )
-                        .font(.title3)
-                        .foregroundColor(copiedFeedback ? .tealAccent : .white)
-                        .frame(width: 48, height: 48)
-                        .background(Circle().fill(Color.white.opacity(0.12)))
-                        Text(copiedFeedback ? "Copied" : "Copy")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                }
-
-                Spacer()
-                    .frame(height: 120)
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.trailing, 16)
         }
     }
 
