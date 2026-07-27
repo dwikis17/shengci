@@ -6,6 +6,7 @@
 //
 
 import AVFoundation
+import SwiftData
 import SwiftUI
 
 // MARK: - Text-To-Speech Manager
@@ -25,8 +26,9 @@ final class SpeechSynthesizerManager {
 }
 
 struct HomeView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var savedWords: [SavedWord]
     @StateObject private var viewModel = HomeViewModel()
-    @State private var bookmarkedWordIDs: Set<UUID> = []
 
     var body: some View {
         ZStack {
@@ -91,15 +93,9 @@ struct HomeView: View {
                                 word: word,
                                 index: index,
                                 totalCount: viewModel.wordList.count,
-                                isBookmarked: bookmarkedWordIDs.contains(
-                                    word.id
-                                ),
+                                isBookmarked: isWordSaved(word),
                                 onToggleBookmark: {
-                                    if bookmarkedWordIDs.contains(word.id) {
-                                        bookmarkedWordIDs.remove(word.id)
-                                    } else {
-                                        bookmarkedWordIDs.insert(word.id)
-                                    }
+                                    toggleBookmark(for: word)
                                 }
                             )
                             .containerRelativeFrame([.horizontal, .vertical])
@@ -109,6 +105,21 @@ struct HomeView: View {
                 .scrollTargetBehavior(.paging)
                 .ignoresSafeArea()
             }
+        }
+    }
+
+    private func isWordSaved(_ word: WordModel) -> Bool {
+        savedWords.contains(where: { $0.simplified == word.simplified })
+    }
+
+    private func toggleBookmark(for word: WordModel) {
+        if let existing = savedWords.first(where: {
+            $0.simplified == word.simplified
+        }) {
+            modelContext.delete(existing)
+        } else {
+            let saved = SavedWord(from: word)
+            modelContext.insert(saved)
         }
     }
 }
@@ -131,32 +142,6 @@ struct WordCardView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                //                HStack {
-                //                    HStack(spacing: 6) {
-                //                        Image(systemName: "character.book.closed.fill")
-                //                            .font(.caption)
-                //                        Text("HSK 1")
-                //                            .font(.caption.bold())
-                //                    }
-                //                    .padding(.horizontal, 12)
-                //                    .padding(.vertical, 6)
-                //                    .background(Capsule().fill(Color.indigoAccent.opacity(0.3)))
-                //                    .overlay(Capsule().stroke(Color.indigoAccent.opacity(0.6), lineWidth: 1))
-                //                    .foregroundColor(.white)
-                //
-                //                    Spacer()
-                //
-                //                    // Counter Badge
-                //                    Text("\(index + 1) / \(totalCount)")
-                //                        .font(.caption.monospacedDigit().bold())
-                //                        .padding(.horizontal, 10)
-                //                        .padding(.vertical, 5)
-                //                        .background(Capsule().fill(Color.white.opacity(0.12)))
-                //                        .foregroundColor(.white.opacity(0.85))
-                //                }
-                //                .padding(.horizontal, 24)
-                //                .padding(.top, 60)
-
                 Spacer()
 
                 // Hero Character Display
@@ -378,7 +363,7 @@ struct WordCardView: View {
                     }
                 }
 
-                // Bookmark Button
+                // Bookmark Button (SwiftData driven)
                 Button {
                     onToggleBookmark()
                 } label: {
@@ -392,7 +377,7 @@ struct WordCardView: View {
                             .background(
                                 Circle().fill(Color.white.opacity(0.12))
                             )
-                        Text("Save")
+                        Text(isBookmarked ? "Saved" : "Save")
                             .font(.caption2)
                             .foregroundColor(.white.opacity(0.8))
                     }
@@ -470,4 +455,5 @@ extension Color {
 
 #Preview {
     HomeView()
+        .modelContainer(for: SavedWord.self, inMemory: true)
 }

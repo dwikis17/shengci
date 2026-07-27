@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct shengciApp: App {
@@ -13,5 +14,6 @@ struct shengciApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: SavedWord.self)
     }
 }
