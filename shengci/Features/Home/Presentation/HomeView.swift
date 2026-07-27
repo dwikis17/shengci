@@ -441,17 +441,7 @@ struct WordCardView: View {
                 .padding(.horizontal, 24)
 
                 Spacer()
-
-                // Swipe Up Prompt Visual
-                VStack(spacing: 4) {
-                    Image(systemName: "chevron.up")
-                        .font(.caption.bold())
-                        .foregroundColor(.white.opacity(0.4))
-                    Text("Swipe for next word")
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.4))
-                }
-                .padding(.bottom, 40)
+            
             }
         }
     }

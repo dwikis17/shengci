@@ -54,17 +54,16 @@ struct ContentView: View {
 
             SavedWordsView()
                 .tabItem {
-                    Label("Saved", systemImage: "heart.fill")
+                    Label("Saved", systemImage: "bookmark")
                 }
                 .tag(Tab.saved)
 
             SettingsView()
                 .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
+                    Label("Settings", systemImage: "gearshape")
                 }
                 .tag(Tab.settings)
         }
-        .tint(Color(red: 0.25, green: 0.82, blue: 0.98))  // Cyan accent tint
     }
 }
 
