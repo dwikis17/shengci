@@ -44,7 +44,7 @@ final class HomeViewModel: ObservableObject {
                 let decoder = JSONDecoder()
                 let words = try decoder.decode([WordModel].self, from: data)
 
-                self.wordList = words
+                self.wordList = words.shuffled()
                 self.isLoading = false
             } catch {
                 self.errorMessage =
