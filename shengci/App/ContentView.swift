@@ -10,9 +10,9 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @State private var selectedTab: Tab = .home
+    @State private var selectedTab: AppTab = .home
 
-    enum Tab: Hashable {
+    enum AppTab: Hashable {
         case home
         case settings
     }
@@ -32,20 +32,33 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView()
-                .tabItem {
-                    Label("Learn", systemImage: "play.rectangle.fill")
+        if #available(iOS 18.0, *) {
+            TabView(selection: $selectedTab) {
+                Tab("Learn", systemImage: "play.rectangle.fill", value: AppTab.home) {
+                    HomeView()
                 }
-                .tag(Tab.home)
 
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
+                Tab("Settings", systemImage: "gearshape.fill", value: AppTab.settings, role: .search) {
+                    SettingsView()
                 }
-                .tag(Tab.settings)
+            }
+            .tint(Color.royalBlueAccent)
+        } else {
+            TabView(selection: $selectedTab) {
+                HomeView()
+                    .tabItem {
+                        Label("Learn", systemImage: "play.rectangle.fill")
+                    }
+                    .tag(AppTab.home)
+
+                SettingsView()
+                    .tabItem {
+                        Label("Settings", systemImage: "gearshape.fill")
+                    }
+                    .tag(AppTab.settings)
+            }
+            .tint(Color.royalBlueAccent)
         }
-        .tint(Color.royalBlueAccent)
     }
 }
 
