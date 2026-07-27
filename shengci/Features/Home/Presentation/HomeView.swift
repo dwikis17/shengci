@@ -30,9 +30,21 @@ struct HomeView: View {
     @Query private var savedWords: [SavedWord]
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
     @StateObject private var viewModel = HomeViewModel()
+    @State private var currentWordID: UUID?
+
+    private var currentIndex: Int {
+        if let currentWordID = currentWordID,
+            let idx = viewModel.wordList.firstIndex(where: {
+                $0.id == currentWordID
+            })
+        {
+            return idx
+        }
+        return 0
+    }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             LinearGradient(
                 colors: [
                     Color(red: 0.07, green: 0.09, blue: 0.15),
@@ -48,10 +60,13 @@ struct HomeView: View {
                     ProgressView()
                         .scaleEffect(1.3)
                         .tint(.white)
-                    Text("Loading HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)") Vocabulary...")
-                        .font(.headline)
-                        .foregroundColor(.white.opacity(0.8))
+                    Text(
+                        "Loading HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)") Vocabulary..."
+                    )
+                    .font(.headline)
+                    .foregroundColor(.white.opacity(0.8))
                 }
+                .frame(maxHeight: .infinity)
             } else if let error = viewModel.errorMessage {
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -73,6 +88,7 @@ struct HomeView: View {
                             .foregroundColor(.white)
                     }
                 }
+                .frame(maxHeight: .infinity)
             } else if viewModel.wordList.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "text.book.closed")
@@ -82,7 +98,9 @@ struct HomeView: View {
                         .font(.headline)
                         .foregroundColor(.white.opacity(0.7))
                 }
+                .frame(maxHeight: .infinity)
             } else {
+                // Scrollable Feed
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 0) {
                         ForEach(
@@ -91,9 +109,6 @@ struct HomeView: View {
                         ) { index, word in
                             WordCardView(
                                 word: word,
-                                index: index,
-                                totalCount: viewModel.wordList.count,
-                                hskLevel: selectedHSKLevel,
                                 isBookmarked: isWordSaved(word),
                                 onToggleBookmark: {
                                     toggleBookmark(for: word)
@@ -104,7 +119,43 @@ struct HomeView: View {
                     }
                 }
                 .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $currentWordID)
                 .ignoresSafeArea()
+
+                // Pinned Header (Fixed on top, not scrollable)
+                HStack {
+                    // HSK Level Badge
+                    HStack(spacing: 6) {
+                        Image(systemName: "character.book.closed.fill")
+                            .font(.caption)
+                        Text(
+                            "HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)")"
+                        )
+                        .font(.caption.bold())
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color.indigoAccent.opacity(0.3)))
+                    .overlay(
+                        Capsule().stroke(
+                            Color.indigoAccent.opacity(0.6),
+                            lineWidth: 1
+                        )
+                    )
+                    .foregroundColor(.white)
+
+                    Spacer()
+
+                    // Counter Badge
+                    Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
+                        .font(.caption.monospacedDigit().bold())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.white.opacity(0.12)))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .padding(.horizontal, 24)
+                .allowsHitTesting(false)
             }
         }
         .onAppear {
@@ -114,6 +165,11 @@ struct HomeView: View {
         }
         .onChange(of: selectedHSKLevel) { newLevel in
             viewModel.loadWords(level: newLevel)
+        }
+        .onChange(of: viewModel.wordList) { newList in
+            if currentWordID == nil || !newList.contains(where: { $0.id == currentWordID }) {
+                currentWordID = newList.first?.id
+            }
         }
     }
 
@@ -136,9 +192,6 @@ struct HomeView: View {
 // MARK: - Word Card View (TikTok 1-word-per-screen layout)
 struct WordCardView: View {
     let word: WordModel
-    let index: Int
-    let totalCount: Int
-    let hskLevel: Int
     let isBookmarked: Bool
     let onToggleBookmark: () -> Void
 
@@ -152,39 +205,6 @@ struct WordCardView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                // Top Metadata Header
-                HStack {
-                    // HSK Level Badge
-                    HStack(spacing: 6) {
-                        Image(systemName: "character.book.closed.fill")
-                            .font(.caption)
-                        Text("HSK \(hskLevel == 7 ? "7-9" : "\(hskLevel)")")
-                            .font(.caption.bold())
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(Color.indigoAccent.opacity(0.3)))
-                    .overlay(
-                        Capsule().stroke(
-                            Color.indigoAccent.opacity(0.6),
-                            lineWidth: 1
-                        )
-                    )
-                    .foregroundColor(.white)
-
-                    Spacer()
-
-                    // Counter Badge
-                    Text("\(index + 1) / \(totalCount)")
-                        .font(.caption.monospacedDigit().bold())
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(Color.white.opacity(0.12)))
-                        .foregroundColor(.white.opacity(0.85))
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 60)
-
                 Spacer()
 
                 // Hero Character Display
@@ -366,12 +386,11 @@ struct WordCardView: View {
                                         ? "speaker.wave.3.fill"
                                         : "speaker.wave.2.fill"
                                 )
-                             
+                                .font(.subheadline)
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                        
                         }
 
                         Spacer()
@@ -389,7 +408,6 @@ struct WordCardView: View {
                                 .foregroundColor(
                                     isBookmarked ? .roseAccent : .white
                                 )
-                              
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
@@ -397,7 +415,7 @@ struct WordCardView: View {
 
                         Spacer()
 
-                
+                        // Copy Button
                         Button {
                             UIPasteboard.general.string =
                                 "\(word.simplified) (\(primaryForm?.transcriptions.pinyin ?? "")): \(primaryForm?.meanings.joined(separator: "; ") ?? "")"
@@ -417,13 +435,10 @@ struct WordCardView: View {
                                 .foregroundColor(
                                     copiedFeedback ? .tealAccent : .white
                                 )
-    
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                           
                         }
-                
 
                         Spacer()
                     }
@@ -441,7 +456,17 @@ struct WordCardView: View {
                 .padding(.horizontal, 24)
 
                 Spacer()
-            
+
+                // Swipe Up Prompt Visual
+                VStack(spacing: 4) {
+                    Image(systemName: "chevron.up")
+                        .font(.caption.bold())
+                        .foregroundColor(.white.opacity(0.4))
+                    Text("Swipe for next word")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                .padding(.bottom, 40)
             }
         }
     }
