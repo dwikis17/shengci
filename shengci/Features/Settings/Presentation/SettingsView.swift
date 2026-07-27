@@ -63,14 +63,7 @@ struct SettingsView: View {
                     // MARK: - Search Navigation Section
                     Section {
                         NavigationLink {
-                            PlaceholderTabView(
-                                title: "Vocabulary Search",
-                                icon: "magnifyingglass",
-                                description:
-                                    "Search HSK words by Pinyin, English, or Chinese characters."
-                            )
-                            .navigationTitle("Search")
-                            .navigationBarTitleDisplayMode(.inline)
+                            DictionarySearchView()
                         } label: {
                             HStack(spacing: 14) {
                                 ZStack {
@@ -96,7 +89,7 @@ struct SettingsView: View {
                                         )
 
                                     Text(
-                                        "Search HSK words by Pinyin or English"
+                                        "Search Chinese, pinyin, or English"
                                     )
                                     .font(.caption)
                                     .foregroundColor(
