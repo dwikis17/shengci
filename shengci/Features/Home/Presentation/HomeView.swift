@@ -57,6 +57,8 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @State private var currentWordID: UUID?
 
+    @State private var isLevelPickerPresented: Bool = false
+
     private var currentIndex: Int {
         if let currentWordID = currentWordID,
             let idx = viewModel.wordList.firstIndex(where: {
@@ -145,45 +147,51 @@ struct HomeView: View {
 
                 // Pinned Header (Fixed on top, not scrollable)
                 HStack {
-                    // HSK Level Badge
-                    HStack(spacing: 6) {
-                        Image(systemName: "character.book.closed.fill")
-                            .font(.caption)
-                        Text(
-                            "HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)")"
-                        )
-                        .font(.caption.bold())
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .overlay(
-                        Capsule().stroke(
-                            Color.black.opacity(0.1),
-                            lineWidth: 1
-                        )
-                    )
-                    .foregroundColor(Color.darkForeground)
-
-                    Spacer()
-
-                    // Counter Badge (Ultra Thin Material, dark text)
-                    Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
-                        .font(.caption.monospacedDigit().bold())
+                    // Clickable HSK Level Badge
+                    Button {
+                        HapticManager.shared.impact(style: .light)
+                        isLevelPickerPresented = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "character.book.closed.fill")
+                                .font(.caption)
+                            Text(
+                                "HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)")"
+                            )
+                            .font(.caption.bold())
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(
+                                    Color.darkForeground.opacity(0.65)
+                                )
+                        }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(.ultraThinMaterial, in: Capsule())
                         .overlay(
                             Capsule().stroke(
                                 Color.black.opacity(0.1),
-                                lineWidth: 0.5
+                                lineWidth: 1
                             )
                         )
                         .foregroundColor(Color.darkForeground)
+                    }
+
+                    Spacer()
+
+                    // Subtle Counter Badge Text (No overlay or background)
+                    Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
+                        .font(.caption.monospacedDigit().weight(.medium))
+                        .foregroundColor(Color.darkForeground.opacity(0.55))
+                        .padding(.vertical, 6)
                 }
                 .padding(.horizontal, 24)
-                .allowsHitTesting(false)
             }
+        }
+        .sheet(isPresented: $isLevelPickerPresented) {
+            HSKLevelPickerSheet(selectedLevel: $selectedHSKLevel)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .onAppear {
             if viewModel.currentLevel != selectedHSKLevel {
@@ -546,6 +554,136 @@ extension Color {
     static let tealAccent       = Color(red: 0.12, green: 0.60, blue: 0.50)  // Warm Sage Teal
     static let amberAccent      = Color(red: 0.82, green: 0.50, blue: 0.10)  // Terracotta Amber
     static let roseAccent       = Color(red: 0.85, green: 0.25, blue: 0.32)  // Crimson Rose
+}
+
+// MARK: - HSK Level Picker Half-Sheet Component
+struct HSKLevelPickerSheet: View {
+    @Binding var selectedLevel: Int
+    @Environment(\.dismiss) private var dismiss
+
+    struct LevelItem: Identifiable {
+        let id: Int
+        let title: String
+        let description: String
+        let badgeColor: Color
+    }
+
+    private let levels: [LevelItem] = [
+        LevelItem(
+            id: 1,
+            title: "HSK Level 1",
+            description: "Beginner (~500 exclusive words)",
+            badgeColor: .blue
+        ),
+        LevelItem(
+            id: 2,
+            title: "HSK Level 2",
+            description: "Elementary (~1,270 exclusive words)",
+            badgeColor: .teal
+        ),
+        LevelItem(
+            id: 3,
+            title: "HSK Level 3",
+            description: "Pre-Intermediate (~970 exclusive words)",
+            badgeColor: .green
+        ),
+        LevelItem(
+            id: 4,
+            title: "HSK Level 4",
+            description: "Intermediate (~1,000 exclusive words)",
+            badgeColor: .orange
+        ),
+        LevelItem(
+            id: 5,
+            title: "HSK Level 5",
+            description: "Upper-Intermediate (~1,070 exclusive words)",
+            badgeColor: .brown
+        ),
+        LevelItem(
+            id: 6,
+            title: "HSK Level 6",
+            description: "Advanced (~1,140 exclusive words)",
+            badgeColor: .red
+        ),
+        LevelItem(
+            id: 7,
+            title: "HSK Level 7-9",
+            description: "Mastery (~5,630 exclusive words)",
+            badgeColor: .purple
+        ),
+    ]
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.creamBackground
+                    .ignoresSafeArea()
+
+                List {
+                    Section {
+                        ForEach(levels) { item in
+                            Button {
+                                HapticManager.shared.selection()
+                                selectedLevel = item.id
+                                dismiss()
+                            } label: {
+                                HStack(spacing: 14) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(item.badgeColor.opacity(0.15))
+                                            .frame(width: 36, height: 36)
+
+                                        Text(item.id == 7 ? "7-9" : "\(item.id)")
+                                            .font(.subheadline.bold())
+                                            .foregroundColor(item.badgeColor)
+                                    }
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.title)
+                                            .font(.body.weight(.semibold))
+                                            .foregroundColor(
+                                                Color.darkForeground
+                                            )
+
+                                        Text(item.description)
+                                            .font(.caption)
+                                            .foregroundColor(
+                                                Color.darkForeground.opacity(
+                                                    0.65
+                                                )
+                                            )
+                                    }
+
+                                    Spacer()
+
+                                    if selectedLevel == item.id {
+                                        Image(
+                                            systemName: "checkmark.circle.fill"
+                                        )
+                                        .font(.title3)
+                                        .foregroundColor(Color.royalBlueAccent)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(Color.warmIvoryCard)
+                        }
+                    } header: {
+                        Text("Select Vocabulary Level")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
+                    }
+                }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle("HSK Level")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.creamBackground, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
+        }
+    }
 }
 
 #Preview {
