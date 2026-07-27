@@ -190,7 +190,7 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isLevelPickerPresented) {
             HSKLevelPickerSheet(selectedLevel: $selectedHSKLevel)
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
         .onAppear {
@@ -628,16 +628,6 @@ struct HSKLevelPickerSheet: View {
                                 dismiss()
                             } label: {
                                 HStack(spacing: 14) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(item.badgeColor.opacity(0.15))
-                                            .frame(width: 36, height: 36)
-
-                                        Text(item.id == 7 ? "7-9" : "\(item.id)")
-                                            .font(.subheadline.bold())
-                                            .foregroundColor(item.badgeColor)
-                                    }
-
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.title)
                                             .font(.body.weight(.semibold))
