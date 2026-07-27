@@ -19,7 +19,6 @@ struct ContentView: View {
     }
     
     init() {
-        // Customize TabBar appearance for sleek dark theme
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(red: 0.07, green: 0.09, blue: 0.15, alpha: 0.95)
