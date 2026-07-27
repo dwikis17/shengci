@@ -198,6 +198,9 @@ struct HomeView: View {
                 currentWordID = newList.first?.id
             }
         }
+        .onChange(of: currentWordID) { _ in
+            HapticManager.shared.selection()
+        }
     }
 
     private func isWordSaved(_ word: WordModel) -> Bool {
