@@ -140,8 +140,10 @@ struct HomeView: View {
                                 }
                             )
                             .containerRelativeFrame([.horizontal, .vertical])
+                            .id(word.id)
                         }
                     }
+                    .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.paging)
                 .scrollPosition(id: $currentWordID)
