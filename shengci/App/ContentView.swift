@@ -58,16 +58,11 @@ struct ContentView: View {
                 }
                 .tag(Tab.saved)
 
-            PlaceholderTabView(
-                title: "Settings",
-                icon: "gearshape.fill",
-                description:
-                    "Manage HSK levels, audio rate, and display options."
-            )
-            .tabItem {
-                Label("Settings", systemImage: "gearshape.fill")
-            }
-            .tag(Tab.settings)
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
+                }
+                .tag(Tab.settings)
         }
         .tint(Color(red: 0.25, green: 0.82, blue: 0.98))  // Cyan accent tint
     }

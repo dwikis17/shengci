@@ -28,6 +28,7 @@ final class SpeechSynthesizerManager {
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var savedWords: [SavedWord]
+    @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
     @StateObject private var viewModel = HomeViewModel()
 
     var body: some View {
@@ -48,7 +49,7 @@ struct HomeView: View {
                     ProgressView()
                         .scaleEffect(1.3)
                         .tint(.white)
-                    Text("Loading Vocabulary...")
+                    Text("Loading HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)") Vocabulary...")
                         .font(.headline)
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -63,7 +64,7 @@ struct HomeView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                     Button {
-                        viewModel.loadWords()
+                        viewModel.loadWords(level: selectedHSKLevel)
                     } label: {
                         Text("Retry")
                             .font(.headline)
@@ -93,6 +94,7 @@ struct HomeView: View {
                                 word: word,
                                 index: index,
                                 totalCount: viewModel.wordList.count,
+                                hskLevel: selectedHSKLevel,
                                 isBookmarked: isWordSaved(word),
                                 onToggleBookmark: {
                                     toggleBookmark(for: word)
@@ -105,6 +107,14 @@ struct HomeView: View {
                 .scrollTargetBehavior(.paging)
                 .ignoresSafeArea()
             }
+        }
+        .onAppear {
+            if viewModel.currentLevel != selectedHSKLevel {
+                viewModel.loadWords(level: selectedHSKLevel)
+            }
+        }
+        .onChange(of: selectedHSKLevel) { newLevel in
+            viewModel.loadWords(level: newLevel)
         }
     }
 
@@ -129,6 +139,7 @@ struct WordCardView: View {
     let word: WordModel
     let index: Int
     let totalCount: Int
+    let hskLevel: Int
     let isBookmarked: Bool
     let onToggleBookmark: () -> Void
 
@@ -142,6 +153,39 @@ struct WordCardView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
+                // Top Metadata Header
+                HStack {
+                    // HSK Level Badge
+                    HStack(spacing: 6) {
+                        Image(systemName: "character.book.closed.fill")
+                            .font(.caption)
+                        Text("HSK \(hskLevel == 7 ? "7-9" : "\(hskLevel)")")
+                            .font(.caption.bold())
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color.indigoAccent.opacity(0.3)))
+                    .overlay(
+                        Capsule().stroke(
+                            Color.indigoAccent.opacity(0.6),
+                            lineWidth: 1
+                        )
+                    )
+                    .foregroundColor(.white)
+
+                    Spacer()
+
+                    // Counter Badge
+                    Text("\(index + 1) / \(totalCount)")
+                        .font(.caption.monospacedDigit().bold())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.white.opacity(0.12)))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 60)
+
                 Spacer()
 
                 // Hero Character Display
