@@ -415,10 +415,9 @@ struct WordCardView: View {
 
                         Spacer()
 
-                        // Copy Button
+                        // Copy Button (Copies only Hanzi)
                         Button {
-                            UIPasteboard.general.string =
-                                "\(word.simplified) (\(primaryForm?.transcriptions.pinyin ?? "")): \(primaryForm?.meanings.joined(separator: "; ") ?? "")"
+                            UIPasteboard.general.string = word.simplified
                             copiedFeedback = true
                             DispatchQueue.main.asyncAfter(
                                 deadline: .now() + 1.5
