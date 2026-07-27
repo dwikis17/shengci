@@ -188,21 +188,44 @@ struct HomeView: View {
         .onAppear {
             if viewModel.currentLevel != selectedHSKLevel {
                 viewModel.loadWords(level: selectedHSKLevel)
+            } else if currentWordID == nil {
+                restoreProgress()
             }
         }
         .onChange(of: selectedHSKLevel) { newLevel in
             viewModel.loadWords(level: newLevel)
         }
-        .onChange(of: viewModel.wordList) { newList in
-            if currentWordID == nil
-                || !newList.contains(where: { $0.id == currentWordID })
-            {
-                currentWordID = newList.first?.id
-            }
+        .onChange(of: viewModel.wordList) { _ in
+            restoreProgress()
         }
-        .onChange(of: currentWordID) { _ in
+        .onChange(of: currentWordID) { newID in
             HapticManager.shared.selection()
+            saveProgress(for: newID)
         }
+    }
+
+    private func restoreProgress() {
+        guard !viewModel.wordList.isEmpty else { return }
+        let savedIndex = UserDefaults.standard.integer(
+            forKey: "hsk_progress_\(selectedHSKLevel)"
+        )
+        let validIndex = min(
+            max(0, savedIndex),
+            viewModel.wordList.count - 1
+        )
+        currentWordID = viewModel.wordList[validIndex].id
+    }
+
+    private func saveProgress(for wordID: UUID?) {
+        guard let wordID = wordID,
+            let idx = viewModel.wordList.firstIndex(where: {
+                $0.id == wordID
+            })
+        else { return }
+        UserDefaults.standard.set(
+            idx,
+            forKey: "hsk_progress_\(selectedHSKLevel)"
+        )
     }
 
     private func isWordSaved(_ word: WordModel) -> Bool {
