@@ -163,17 +163,19 @@ enum CEDICT {
         else { return nil }
 
         let pinyinStart = fields[2].index(after: fields[2].startIndex)
-        let definitions = fields[2][fields[2].index(after: pinyinEnd)...]
+        let rawDefinitions = fields[2][fields[2].index(after: pinyinEnd)...]
             .split(separator: "/", omittingEmptySubsequences: true)
-            .map(String.init)
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "; ")) }
+            .filter { !$0.isEmpty }
 
-        guard !definitions.isEmpty else { return nil }
+        guard !rawDefinitions.isEmpty else { return nil }
         return CEDICTEntry(
             id: id,
             traditional: String(fields[0]),
             simplified: String(fields[1]),
             pinyin: String(fields[2][pinyinStart..<pinyinEnd]),
-            definitions: definitions
+            definitions: rawDefinitions
         )
     }
 
@@ -250,37 +252,92 @@ struct DictionarySearchView: View {
         ZStack {
             Color.creamBackground.ignoresSafeArea()
 
-            Group {
-                if isLoading {
-                    ProgressView("Loading dictionary…")
-                } else if let loadError {
-                    ContentUnavailableView("Dictionary Unavailable", systemImage: "exclamationmark.triangle", description: Text(loadError))
-                } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    ContentUnavailableView("Search the Dictionary", systemImage: "magnifyingglass", description: Text("Search Chinese characters, pinyin, or English."))
-                } else if results.entries.isEmpty {
-                    ContentUnavailableView("No Matches", systemImage: "magnifyingglass", description: Text("Try a shorter or different search."))
-                } else {
-                    List {
+            if isLoading {
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                        .tint(Color.darkForeground)
+                    Text("Loading dictionary…")
+                        .font(.headline)
+                        .foregroundColor(Color.darkForeground.opacity(0.8))
+                }
+            } else if let loadError {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.amberAccent)
+                    Text(loadError)
+                        .font(.subheadline)
+                        .foregroundColor(Color.darkForeground.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+            } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                VStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.royalBlueAccent.opacity(0.12))
+                            .frame(width: 72, height: 72)
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 32, weight: .semibold))
+                            .foregroundColor(Color.royalBlueAccent)
+                    }
+                    Text("Search the Dictionary")
+                        .font(.title2.bold())
+                        .foregroundColor(Color.darkForeground)
+                    Text("Search Chinese characters, pinyin, or English.")
+                        .font(.subheadline)
+                        .foregroundColor(Color.darkForeground.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                .frame(maxHeight: .infinity)
+            } else if results.entries.isEmpty {
+                VStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.roseAccent.opacity(0.12))
+                            .frame(width: 72, height: 72)
+                        Image(systemName: "text.magnifyingglass")
+                            .font(.system(size: 32, weight: .semibold))
+                            .foregroundColor(Color.roseAccent)
+                    }
+                    Text("No Matches Found")
+                        .font(.title2.bold())
+                        .foregroundColor(Color.darkForeground)
+                    Text("Try searching with different keywords, pinyin, or characters.")
+                        .font(.subheadline)
+                        .foregroundColor(Color.darkForeground.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(spacing: 12) {
                         if results.hasMore {
-                            Text("Showing the first 100 matches. Refine your search for more.")
-                                .font(.footnote)
-                                .foregroundColor(Color.darkForeground.opacity(0.65))
-                                .listRowBackground(Color.creamBackground)
+                            HStack {
+                                Image(systemName: "info.circle")
+                                    .font(.caption)
+                                Text("Showing the first 100 matches. Refine your search for more.")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
+                            .padding(.vertical, 4)
                         }
 
                         ForEach(results.entries) { entry in
                             DictionaryEntryRow(entry: entry)
-                                .listRowBackground(Color.warmIvoryCard)
                         }
 
                         Text("Source: CC-CEDICT (MDBG) · CC BY-SA 4.0")
                             .font(.caption)
-                            .foregroundColor(Color.darkForeground.opacity(0.55))
-                            .frame(maxWidth: .infinity)
-                            .listRowBackground(Color.creamBackground)
+                            .foregroundColor(Color.darkForeground.opacity(0.5))
+                            .padding(.top, 12)
+                            .padding(.bottom, 24)
                     }
-                    .listStyle(.insetGrouped)
-                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
                 }
             }
         }
@@ -331,28 +388,67 @@ struct DictionarySearchView: View {
 
 private struct DictionaryEntryRow: View {
     let entry: CEDICTEntry
+    @State private var isSpeaking = false
+
+    private var cleanedDefinitions: String {
+        entry.definitions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "; ")) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "; ")
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
                 Text(entry.simplified)
                     .font(.title2.bold())
                     .foregroundColor(Color.darkForeground)
 
                 if entry.traditional != entry.simplified {
-                    Text(entry.traditional)
+                    Text("(\(entry.traditional))")
+                        .font(.subheadline)
                         .foregroundColor(Color.darkForeground.opacity(0.55))
                 }
 
                 Text(PinyinFormatter.display(entry.pinyin))
-                    .font(.subheadline)
+                    .font(.headline)
                     .foregroundColor(Color.royalBlueAccent)
+
+                Spacer()
+
+                // Audio Button
+                Button {
+                    SpeechSynthesizerManager.shared.speak(entry.simplified)
+                    HapticManager.shared.impact(style: .light)
+                    isSpeaking = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        isSpeaking = false
+                    }
+                } label: {
+                    Image(systemName: isSpeaking ? "speaker.wave.3.fill" : "speaker.wave.2.fill")
+                        .font(.subheadline)
+                        .foregroundColor(isSpeaking ? Color.royalBlueAccent : Color.darkForeground.opacity(0.6))
+                        .padding(6)
+                }
+                .buttonStyle(.plain)
             }
 
-            Text(entry.definitions.joined(separator: "; "))
+            Text(cleanedDefinitions)
                 .font(.subheadline)
-                .foregroundColor(Color.darkForeground.opacity(0.75))
+                .foregroundColor(Color.darkForeground.opacity(0.8))
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.warmIvoryCard)
+                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.black.opacity(0.05), lineWidth: 1)
+        )
     }
 }
