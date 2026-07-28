@@ -207,45 +207,43 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
 
         let pinyinQuery = CEDICT.normalizePinyin(trimmedQuery)
         let englishQuery = trimmedQuery.lowercased()
+        let likePattern = "%\(trimmedQuery)%"
+        let pinyinLikePattern = "%\(pinyinQuery)%"
+        let englishLikePattern = "%\(englishQuery)%"
+
         var matchingIDs = Set<Int>()
 
         if scope == .all || scope == .hanzi {
-            // 1. Simplified Chinese prefix
+            // 1. Simplified & Traditional Chinese substring
             addMatchingIDs(
-                sql: "SELECT id FROM entries WHERE simplified >= ? AND simplified < ?;",
-                lowerBound: trimmedQuery,
-                upperBound: trimmedQuery + "\u{FFFF}",
-                into: &matchingIDs
-            )
-
-            // 2. Traditional Chinese prefix
-            addMatchingIDs(
-                sql: "SELECT id FROM entries WHERE traditional >= ? AND traditional < ?;",
-                lowerBound: trimmedQuery,
-                upperBound: trimmedQuery + "\u{FFFF}",
+                sql: "SELECT id FROM entries WHERE simplified LIKE ? OR traditional LIKE ?;",
+                patterns: [likePattern, likePattern],
                 into: &matchingIDs
             )
         }
 
         if scope == .all || scope == .pinyin {
-            // 3. Pinyin normalized prefix
+            // 2. Pinyin normalized substring
             if !pinyinQuery.isEmpty {
                 addMatchingIDs(
-                    sql: "SELECT id FROM entries WHERE pinyin_normalized >= ? AND pinyin_normalized < ?;",
-                    lowerBound: pinyinQuery,
-                    upperBound: pinyinQuery + "\u{FFFF}",
+                    sql: "SELECT id FROM entries WHERE pinyin_normalized LIKE ?;",
+                    patterns: [pinyinLikePattern],
                     into: &matchingIDs
                 )
             }
         }
 
         if scope == .all || scope == .english {
-            // 4. English token prefix
+            // 3. English definition substring & token matching
             if !englishQuery.isEmpty {
                 addMatchingIDs(
-                    sql: "SELECT entry_id FROM english_tokens WHERE token >= ? AND token < ?;",
-                    lowerBound: englishQuery,
-                    upperBound: englishQuery + "\u{FFFF}",
+                    sql: "SELECT id FROM entries WHERE definitions LIKE ?;",
+                    patterns: [englishLikePattern],
+                    into: &matchingIDs
+                )
+                addMatchingIDs(
+                    sql: "SELECT entry_id FROM english_tokens WHERE token LIKE ?;",
+                    patterns: ["\(englishQuery)%"],
                     into: &matchingIDs
                 )
             }
@@ -264,13 +262,14 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         return CEDICTSearchResult(entries: entries, hasMore: hasMore)
     }
 
-    private func addMatchingIDs(sql: String, lowerBound: String, upperBound: String, into matchingIDs: inout Set<Int>) {
+    private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>) {
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK, let stmt else { return }
         defer { sqlite3_finalize(stmt) }
 
-        sqlite3_bind_text(stmt, 1, lowerBound, -1, SQLITE_TRANSIENT)
-        sqlite3_bind_text(stmt, 2, upperBound, -1, SQLITE_TRANSIENT)
+        for (index, pattern) in patterns.enumerated() {
+            sqlite3_bind_text(stmt, Int32(index + 1), pattern, -1, SQLITE_TRANSIENT)
+        }
 
         var checkCounter = 0
         while sqlite3_step(stmt) == SQLITE_ROW {
@@ -687,6 +686,7 @@ struct DictionarySearchView: View {
         }
 
         let searchResults = await CEDICTStore.shared.search(query: trimmedQuery, scope: searchScope)
+        results = searchResults
         guard !Task.isCancelled else { return }
     }
 }
