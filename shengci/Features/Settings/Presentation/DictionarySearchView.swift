@@ -261,13 +261,15 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
                         into: &matchingIDs,
                         orderedOutput: &priorityIDs
                     )
-                    // Substring match for single character
-                    let charLike = "%\(charStr)%"
-                    addMatchingIDs(
-                        sql: "SELECT id FROM entries WHERE simplified LIKE ? OR traditional LIKE ?;",
-                        patterns: [charLike, charLike],
-                        into: &matchingIDs
-                    )
+                    // Substring match for single character only if single character query
+                    if hanziChars.count == 1 {
+                        let charLike = "%\(charStr)%"
+                        addMatchingIDs(
+                            sql: "SELECT id FROM entries WHERE simplified LIKE ? OR traditional LIKE ?;",
+                            patterns: [charLike, charLike],
+                            into: &matchingIDs
+                        )
+                    }
                 }
             }
         }
@@ -323,7 +325,8 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         let fetchLimit = max(limit, 300)
         let pageIDs = Array(candidateIDs.prefix(fetchLimit))
         let rawEntries = fetchEntries(for: pageIDs)
-        let rankedEntries = rankEntries(rawEntries, for: trimmedQuery)
+        let filteredEntries = filterEntries(rawEntries, for: trimmedQuery)
+        let rankedEntries = rankEntries(filteredEntries, for: trimmedQuery)
 
         let hasMore = matchingIDs.count > limit
         let finalEntries = Array(rankedEntries.prefix(limit))
@@ -351,9 +354,20 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         }
     }
 
-    private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>) {
-        var dummy: [Int] = []
-        addMatchingIDs(sql: sql, patterns: patterns, into: &matchingIDs, orderedOutput: &dummy)
+    private func filterEntries(_ entries: [CEDICTEntry], for query: String) -> [CEDICTEntry] {
+        let hanziChars = Array(query.filter { $0.isHanzi })
+        guard hanziChars.count > 1 else { return entries }
+
+        let charStrings = Set(hanziChars.map { String($0) })
+        return entries.filter { entry in
+            if entry.simplified.contains(query) || entry.traditional.contains(query) {
+                return true
+            }
+            if charStrings.contains(entry.simplified) || charStrings.contains(entry.traditional) {
+                return true
+            }
+            return false
+        }
     }
 
     private func rankEntries(_ entries: [CEDICTEntry], for query: String) -> [CEDICTEntry] {
