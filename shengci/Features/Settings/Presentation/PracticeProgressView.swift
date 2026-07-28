@@ -81,7 +81,6 @@ struct PracticeProgressView: View {
             Color.creamBackground,
             for: .navigationBar
         )
-        .toolbarColorScheme(.light, for: .navigationBar)
     }
 }
 

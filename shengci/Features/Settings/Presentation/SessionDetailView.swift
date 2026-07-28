@@ -83,6 +83,5 @@ struct SessionDetailView: View {
         .navigationTitle("Session Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.creamBackground, for: .navigationBar)
-        .toolbarColorScheme(.light, for: .navigationBar)
     }
 }

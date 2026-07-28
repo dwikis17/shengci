@@ -58,7 +58,6 @@ struct PracticeView: View {
                 Color.creamBackground,
                 for: .navigationBar
             )
-            .toolbarColorScheme(.light, for: .navigationBar)
             .toolbar {
                 if isPracticing {
                     ToolbarItem(placement: .topBarLeading) {

@@ -21,26 +21,16 @@ struct ContentView: View {
     init() {
         let tabBarAppearance = UITabBarAppearance()
         tabBarAppearance.configureWithOpaqueBackground()
-        tabBarAppearance.backgroundColor = UIColor(
-            red: 0.97,
-            green: 0.95,
-            blue: 0.92,
-            alpha: 0.95
-        )
+        tabBarAppearance.backgroundColor = .creamBackground
 
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
 
         let navBarAppearance = UINavigationBarAppearance()
         navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.backgroundColor = UIColor(
-            red: 0.97,
-            green: 0.95,
-            blue: 0.92,
-            alpha: 0.95
-        )
-        navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.black]
-        navBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.black]
+        navBarAppearance.backgroundColor = .creamBackground
+        navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.darkForeground]
+        navBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.darkForeground]
 
         UINavigationBar.appearance().standardAppearance = navBarAppearance
         UINavigationBar.appearance().compactAppearance = navBarAppearance
@@ -211,7 +201,6 @@ struct SavedWordsView: View {
             Color.creamBackground,
             for: .navigationBar
         )
-        .toolbarColorScheme(.light, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
     }
 

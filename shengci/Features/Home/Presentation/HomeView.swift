@@ -672,45 +672,6 @@ struct WordCardView: View {
     }
 }
 
-// MARK: - Cream Theme Color Palette Extension
-extension Color {
-    static let creamBackground = Color(
-        red: 0.97,
-        green: 0.95,
-        blue: 0.92
-    )  // #FAF2EA Warm Cream
-    static let warmIvoryCard = Color(
-        red: 1.0,
-        green: 0.99,
-        blue: 0.97
-    )  // Soft Ivory White
-    static let darkForeground = Color(
-        red: 0.15,
-        green: 0.13,
-        blue: 0.12
-    )  // Deep Espresso Charcoal
-    static let royalBlueAccent = Color(
-        red: 0.20,
-        green: 0.40,
-        blue: 0.80
-    )  // Slate Royal Blue
-    static let tealAccent = Color(
-        red: 0.12,
-        green: 0.60,
-        blue: 0.50
-    )  // Warm Sage Teal
-    static let amberAccent = Color(
-        red: 0.82,
-        green: 0.50,
-        blue: 0.10
-    )  // Terracotta Amber
-    static let roseAccent = Color(
-        red: 0.85,
-        green: 0.25,
-        blue: 0.32
-    )  // Crimson Rose
-}
-
 // MARK: - HSK Level Picker Half-Sheet Component
 struct HSKLevelPickerSheet: View {
     @Binding var selectedLevel: Int
@@ -826,7 +787,6 @@ struct HSKLevelPickerSheet: View {
             .navigationTitle("HSK Level")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.creamBackground, for: .navigationBar)
-            .toolbarColorScheme(.light, for: .navigationBar)
         }
     }
 }

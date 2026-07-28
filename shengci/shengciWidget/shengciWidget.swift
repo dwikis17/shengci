@@ -66,7 +66,7 @@ public struct WordOfTheDayWidgetEntryView: View {
 
     public var body: some View {
         ZStack {
-            Color(red: 0.97, green: 0.95, blue: 0.92) // Cream background
+            Color.creamBackground // Cream background
                 .ignoresSafeArea()
 
             switch family {
@@ -93,7 +93,7 @@ public struct WordOfTheDayWidgetEntryView: View {
             HStack {
                 Text("WORD OF THE DAY")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                    .foregroundColor(Color.royalBlueAccent)
                     .tracking(0.5)
 
                 Spacer()
@@ -102,8 +102,8 @@ public struct WordOfTheDayWidgetEntryView: View {
                     .font(.system(size: 9, weight: .bold))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
-                    .background(Color(red: 0.24, green: 0.35, blue: 0.65).opacity(0.12))
-                    .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                    .background(Color.royalBlueAccent.opacity(0.12))
+                    .foregroundColor(Color.royalBlueAccent)
                     .cornerRadius(4)
             }
 
@@ -111,19 +111,19 @@ public struct WordOfTheDayWidgetEntryView: View {
 
             Text(entry.word.simplified)
                 .font(.system(size: 38, weight: .bold, design: .serif))
-                .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18))
+                .foregroundColor(Color.darkForeground)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
 
             Text(entry.word.formattedPinyin)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                .foregroundColor(Color.royalBlueAccent)
                 .lineLimit(1)
 
             if let firstMeaning = entry.word.meanings.first {
                 Text(firstMeaning)
                     .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.75))
+                    .foregroundColor(Color.darkForeground.opacity(0.75))
                     .lineLimit(2)
             }
 
@@ -140,25 +140,25 @@ public struct WordOfTheDayWidgetEntryView: View {
                 HStack {
                     Text("WORD OF THE DAY")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                        .foregroundColor(Color.royalBlueAccent)
                         .tracking(0.5)
 
                     Text("• HSK \(entry.word.hskLevel)")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65).opacity(0.8))
+                        .foregroundColor(Color.royalBlueAccent.opacity(0.8))
                 }
 
                 Spacer()
 
                 Text(entry.word.simplified)
                     .font(.system(size: 46, weight: .bold, design: .serif))
-                    .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18))
+                    .foregroundColor(Color.darkForeground)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
 
                 Text(entry.word.formattedPinyin)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                    .foregroundColor(Color.royalBlueAccent)
                     .lineLimit(1)
 
                 Spacer()
@@ -166,7 +166,7 @@ public struct WordOfTheDayWidgetEntryView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Divider()
-                .background(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.15))
+                .background(Color.darkForeground.opacity(0.15))
 
             // Right Column: Meanings & Radical
             VStack(alignment: .leading, spacing: 8) {
@@ -174,24 +174,24 @@ public struct WordOfTheDayWidgetEntryView: View {
                     HStack(spacing: 4) {
                         Text("Radical:")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.6))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
                         Text(entry.word.radical)
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18))
+                            .foregroundColor(Color.darkForeground)
                     }
                 }
 
                 if !entry.word.pos.isEmpty {
                     Text(entry.word.pos.joined(separator: ", ").uppercased())
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                        .foregroundColor(Color.royalBlueAccent)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(Array(entry.word.meanings.prefix(3).enumerated()), id: \.offset) { idx, meaning in
                         Text("\(idx + 1). \(meaning)")
                             .font(.system(size: 12))
-                            .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.85))
+                            .foregroundColor(Color.darkForeground.opacity(0.85))
                             .lineLimit(1)
                     }
                 }
@@ -210,11 +210,11 @@ public struct WordOfTheDayWidgetEntryView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("WORD OF THE DAY")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                        .foregroundColor(Color.royalBlueAccent)
                         .tracking(0.5)
                     Text(Date(), style: .date)
                         .font(.system(size: 11))
-                        .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.5))
+                        .foregroundColor(Color.darkForeground.opacity(0.5))
                 }
 
                 Spacer()
@@ -223,31 +223,31 @@ public struct WordOfTheDayWidgetEntryView: View {
                     .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color(red: 0.24, green: 0.35, blue: 0.65).opacity(0.12))
-                    .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                    .background(Color.royalBlueAccent.opacity(0.12))
+                    .foregroundColor(Color.royalBlueAccent)
                     .cornerRadius(6)
             }
 
             HStack(spacing: 16) {
                 Text(entry.word.simplified)
                     .font(.system(size: 64, weight: .bold, design: .serif))
-                    .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18))
+                    .foregroundColor(Color.darkForeground)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.word.formattedPinyin)
                         .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                        .foregroundColor(Color.royalBlueAccent)
 
                     if !entry.word.traditional.isEmpty && entry.word.traditional != entry.word.simplified {
                         Text("Traditional: \(entry.word.traditional)")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.6))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
                     }
 
                     if !entry.word.radical.isEmpty {
                         Text("Radical: \(entry.word.radical)")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.6))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
                     }
                 }
             }
@@ -258,16 +258,16 @@ public struct WordOfTheDayWidgetEntryView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("DEFINITIONS")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.5))
+                    .foregroundColor(Color.darkForeground.opacity(0.5))
 
                 ForEach(Array(entry.word.meanings.prefix(4).enumerated()), id: \.offset) { idx, meaning in
                     HStack(alignment: .top, spacing: 6) {
                         Text("\(idx + 1).")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(red: 0.24, green: 0.35, blue: 0.65))
+                            .foregroundColor(Color.royalBlueAccent)
                         Text(meaning)
                             .font(.system(size: 13))
-                            .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.18).opacity(0.85))
+                            .foregroundColor(Color.darkForeground.opacity(0.85))
                     }
                 }
             }
@@ -309,7 +309,7 @@ public struct shengciWidget: Widget {
         StaticConfiguration(kind: kind, provider: WordOfTheDayProvider()) { entry in
             if #available(iOS 17.0, *) {
                 WordOfTheDayWidgetEntryView(entry: entry)
-                    .containerBackground(Color(red: 0.97, green: 0.95, blue: 0.92), for: .widget)
+                    .containerBackground(Color.creamBackground, for: .widget)
             } else {
                 WordOfTheDayWidgetEntryView(entry: entry)
             }

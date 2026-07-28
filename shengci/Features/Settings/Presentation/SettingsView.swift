@@ -159,7 +159,6 @@ struct SettingsView: View {
                 Color.creamBackground,
                 for: .navigationBar
             )
-            .toolbarColorScheme(.light, for: .navigationBar)
         }
     }
 }

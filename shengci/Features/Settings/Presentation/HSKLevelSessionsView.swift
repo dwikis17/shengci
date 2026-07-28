@@ -91,7 +91,6 @@ struct HSKLevelSessionsView: View {
         .navigationTitle(levelTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.creamBackground, for: .navigationBar)
-        .toolbarColorScheme(.light, for: .navigationBar)
         .toolbar {
             if !levelSessions.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
