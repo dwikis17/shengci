@@ -61,6 +61,25 @@ enum CEDICT {
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
+extension Character {
+    var isHanzi: Bool {
+        guard let scalar = unicodeScalars.first, unicodeScalars.count == 1 else { return false }
+        switch scalar.value {
+        case 0x4E00...0x9FFF,
+             0x3400...0x4DBF,
+             0x20000...0x2A6DF,
+             0x2A700...0x2B73F,
+             0x2B740...0x2B81F,
+             0x2B820...0x2CEAF,
+             0xF900...0xFAFF,
+             0x2F800...0x2FA1F:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 enum SearchScope: String, CaseIterable, Identifiable, Sendable {
     case all = "All"
     case hanzi = "Hanzi"
@@ -211,15 +230,46 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         let pinyinLikePattern = "%\(pinyinQuery)%"
         let englishLikePattern = "%\(englishQuery)%"
 
+        var priorityIDs: [Int] = []
         var matchingIDs = Set<Int>()
 
         if scope == .all || scope == .hanzi {
-            // 1. Simplified & Traditional Chinese substring
+            // 1a. Full query exact match
+            addMatchingIDs(
+                sql: "SELECT id FROM entries WHERE simplified = ? OR traditional = ?;",
+                patterns: [trimmedQuery, trimmedQuery],
+                into: &matchingIDs,
+                orderedOutput: &priorityIDs
+            )
+
+            // 1b. Full query substring match
             addMatchingIDs(
                 sql: "SELECT id FROM entries WHERE simplified LIKE ? OR traditional LIKE ?;",
                 patterns: [likePattern, likePattern],
                 into: &matchingIDs
             )
+
+            // 1c. Breakdown for individual Hanzi characters in query
+            let hanziChars = trimmedQuery.filter { $0.isHanzi }
+            if !hanziChars.isEmpty {
+                for char in hanziChars {
+                    let charStr = String(char)
+                    // Exact single character match
+                    addMatchingIDs(
+                        sql: "SELECT id FROM entries WHERE simplified = ? OR traditional = ?;",
+                        patterns: [charStr, charStr],
+                        into: &matchingIDs,
+                        orderedOutput: &priorityIDs
+                    )
+                    // Substring match for single character
+                    let charLike = "%\(charStr)%"
+                    addMatchingIDs(
+                        sql: "SELECT id FROM entries WHERE simplified LIKE ? OR traditional LIKE ?;",
+                        patterns: [charLike, charLike],
+                        into: &matchingIDs
+                    )
+                }
+            }
         }
 
         if scope == .all || scope == .pinyin {
@@ -253,18 +303,34 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
 
         guard !Task.isCancelled else { return .empty }
 
-        let sortedIDs = matchingIDs.sorted()
-        let hasMore = sortedIDs.count > limit
-        let pageIDs = Array(sortedIDs.prefix(limit))
-        if pageIDs.isEmpty {
+        if matchingIDs.isEmpty {
             return .empty
         }
 
-        let entries = fetchEntries(for: pageIDs)
-        return CEDICTSearchResult(entries: entries, hasMore: hasMore)
+        var candidateIDs: [Int] = []
+        var addedSet = Set<Int>()
+        for id in priorityIDs {
+            if addedSet.insert(id).inserted {
+                candidateIDs.append(id)
+            }
+        }
+        for id in matchingIDs.sorted() {
+            if addedSet.insert(id).inserted {
+                candidateIDs.append(id)
+            }
+        }
+
+        let fetchLimit = max(limit, 300)
+        let pageIDs = Array(candidateIDs.prefix(fetchLimit))
+        let rawEntries = fetchEntries(for: pageIDs)
+        let rankedEntries = rankEntries(rawEntries, for: trimmedQuery)
+
+        let hasMore = matchingIDs.count > limit
+        let finalEntries = Array(rankedEntries.prefix(limit))
+        return CEDICTSearchResult(entries: finalEntries, hasMore: hasMore)
     }
 
-    private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>) {
+    private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>, orderedOutput: inout [Int]) {
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK, let stmt else { return }
         defer { sqlite3_finalize(stmt) }
@@ -281,7 +347,57 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
             }
             let entryID = Int(sqlite3_column_int64(stmt, 0))
             matchingIDs.insert(entryID)
+            orderedOutput.append(entryID)
         }
+    }
+
+    private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>) {
+        var dummy: [Int] = []
+        addMatchingIDs(sql: sql, patterns: patterns, into: &matchingIDs, orderedOutput: &dummy)
+    }
+
+    private func rankEntries(_ entries: [CEDICTEntry], for query: String) -> [CEDICTEntry] {
+        let hanziChars = Array(query.filter { $0.isHanzi })
+
+        return entries.sorted { a, b in
+            let scoreA = score(entry: a, query: query, hanziChars: hanziChars)
+            let scoreB = score(entry: b, query: query, hanziChars: hanziChars)
+            if scoreA != scoreB {
+                return scoreA > scoreB
+            }
+            if a.simplified.count != b.simplified.count {
+                return a.simplified.count < b.simplified.count
+            }
+            return a.id < b.id
+        }
+    }
+
+    private func score(entry: CEDICTEntry, query: String, hanziChars: [Character]) -> Int {
+        if entry.simplified == query || entry.traditional == query {
+            return 1000
+        }
+        if entry.simplified.hasPrefix(query) || entry.traditional.hasPrefix(query) {
+            return 900
+        }
+        if entry.simplified.contains(query) || entry.traditional.contains(query) {
+            return 800
+        }
+
+        if !hanziChars.isEmpty {
+            for (idx, char) in hanziChars.enumerated() {
+                let charStr = String(char)
+                if entry.simplified == charStr || entry.traditional == charStr {
+                    return 700 - (idx * 10)
+                }
+            }
+            for (idx, char) in hanziChars.enumerated() {
+                let charStr = String(char)
+                if entry.simplified.contains(charStr) || entry.traditional.contains(charStr) {
+                    return 400 - (idx * 10)
+                }
+            }
+        }
+        return 0
     }
 
     private func fetchEntries(for pageIDs: [Int]) -> [CEDICTEntry] {
