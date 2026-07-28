@@ -511,6 +511,20 @@ struct DictionarySearchView: View {
     @State private var isLoading = true
     @State private var loadError: String?
 
+    init() {
+        let appearance = UISegmentedControl.appearance()
+        appearance.selectedSegmentTintColor = UIColor(Color.royalBlueAccent)
+        appearance.backgroundColor = UIColor(Color.warmIvoryCard)
+        appearance.setTitleTextAttributes(
+            [.foregroundColor: UIColor.white, .font: UIFont.systemFont(ofSize: 13, weight: .semibold)],
+            for: .selected
+        )
+        appearance.setTitleTextAttributes(
+            [.foregroundColor: UIColor.black.withAlphaComponent(0.75), .font: UIFont.systemFont(ofSize: 13, weight: .medium)],
+            for: .normal
+        )
+    }
+
     var body: some View {
         ZStack {
             Color.creamBackground.ignoresSafeArea()
@@ -674,9 +688,10 @@ struct DictionarySearchView: View {
 
         let searchResults = await CEDICTStore.shared.search(query: trimmedQuery, scope: searchScope)
         guard !Task.isCancelled else { return }
-        results = searchResults
     }
 }
+
+
 
 
 private struct DictionaryEntryRow: View {
