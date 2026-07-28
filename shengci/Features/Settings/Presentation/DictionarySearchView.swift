@@ -61,6 +61,15 @@ enum CEDICT {
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
+enum SearchScope: String, CaseIterable, Identifiable, Sendable {
+    case all = "All"
+    case hanzi = "Hanzi"
+    case pinyin = "Pinyin"
+    case english = "English"
+
+    var id: String { rawValue }
+}
+
 nonisolated final class SQLiteDatabase: @unchecked Sendable {
     private var db: OpaquePointer?
 
@@ -192,7 +201,7 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         return 0
     }
 
-    func search(query: String, limit: Int = 100) -> CEDICTSearchResult {
+    func search(query: String, scope: SearchScope = .all, limit: Int = 100) -> CEDICTSearchResult {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return .empty }
 
@@ -200,40 +209,46 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         let englishQuery = trimmedQuery.lowercased()
         var matchingIDs = Set<Int>()
 
-        // 1. Simplified Chinese prefix
-        addMatchingIDs(
-            sql: "SELECT id FROM entries WHERE simplified >= ? AND simplified < ?;",
-            lowerBound: trimmedQuery,
-            upperBound: trimmedQuery + "\u{FFFF}",
-            into: &matchingIDs
-        )
-
-        // 2. Traditional Chinese prefix
-        addMatchingIDs(
-            sql: "SELECT id FROM entries WHERE traditional >= ? AND traditional < ?;",
-            lowerBound: trimmedQuery,
-            upperBound: trimmedQuery + "\u{FFFF}",
-            into: &matchingIDs
-        )
-
-        // 3. Pinyin normalized prefix
-        if !pinyinQuery.isEmpty {
+        if scope == .all || scope == .hanzi {
+            // 1. Simplified Chinese prefix
             addMatchingIDs(
-                sql: "SELECT id FROM entries WHERE pinyin_normalized >= ? AND pinyin_normalized < ?;",
-                lowerBound: pinyinQuery,
-                upperBound: pinyinQuery + "\u{FFFF}",
+                sql: "SELECT id FROM entries WHERE simplified >= ? AND simplified < ?;",
+                lowerBound: trimmedQuery,
+                upperBound: trimmedQuery + "\u{FFFF}",
+                into: &matchingIDs
+            )
+
+            // 2. Traditional Chinese prefix
+            addMatchingIDs(
+                sql: "SELECT id FROM entries WHERE traditional >= ? AND traditional < ?;",
+                lowerBound: trimmedQuery,
+                upperBound: trimmedQuery + "\u{FFFF}",
                 into: &matchingIDs
             )
         }
 
-        // 4. English token prefix
-        if !englishQuery.isEmpty {
-            addMatchingIDs(
-                sql: "SELECT entry_id FROM english_tokens WHERE token >= ? AND token < ?;",
-                lowerBound: englishQuery,
-                upperBound: englishQuery + "\u{FFFF}",
-                into: &matchingIDs
-            )
+        if scope == .all || scope == .pinyin {
+            // 3. Pinyin normalized prefix
+            if !pinyinQuery.isEmpty {
+                addMatchingIDs(
+                    sql: "SELECT id FROM entries WHERE pinyin_normalized >= ? AND pinyin_normalized < ?;",
+                    lowerBound: pinyinQuery,
+                    upperBound: pinyinQuery + "\u{FFFF}",
+                    into: &matchingIDs
+                )
+            }
+        }
+
+        if scope == .all || scope == .english {
+            // 4. English token prefix
+            if !englishQuery.isEmpty {
+                addMatchingIDs(
+                    sql: "SELECT entry_id FROM english_tokens WHERE token >= ? AND token < ?;",
+                    lowerBound: englishQuery,
+                    upperBound: englishQuery + "\u{FFFF}",
+                    into: &matchingIDs
+                )
+            }
         }
 
         guard !Task.isCancelled else { return .empty }
@@ -341,7 +356,7 @@ actor CEDICTStore {
         try await task.value
     }
 
-    func search(query: String, limit: Int = 100) async -> CEDICTSearchResult {
+    func search(query: String, scope: SearchScope = .all, limit: Int = 100) async -> CEDICTSearchResult {
         if database == nil {
             do {
                 try await prepare()
@@ -350,7 +365,7 @@ actor CEDICTStore {
             }
         }
         guard let database else { return .empty }
-        return database.search(query: query, limit: limit)
+        return database.search(query: query, scope: scope, limit: limit)
     }
 
     private func fetchOrStartBuildTask(priority: TaskPriority) -> Task<Void, Error> {
@@ -491,6 +506,7 @@ actor CEDICTStore {
 
 struct DictionarySearchView: View {
     @State private var query = ""
+    @State private var searchScope: SearchScope = .all
     @State private var results = CEDICTSearchResult.empty
     @State private var isLoading = true
     @State private var loadError: String?
@@ -499,107 +515,123 @@ struct DictionarySearchView: View {
         ZStack {
             Color.creamBackground.ignoresSafeArea()
 
-            if isLoading {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                        .tint(Color.darkForeground)
-                    Text("Loading dictionary…")
-                        .font(.headline)
-                        .foregroundColor(Color.darkForeground.opacity(0.8))
-                }
-            } else if let loadError {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.amberAccent)
-                    Text(loadError)
-                        .font(.subheadline)
-                        .foregroundColor(Color.darkForeground.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-
-                    Button {
-                        Task { await loadDictionary() }
-                    } label: {
-                        Text("Retry")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.royalBlueAccent)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                VStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.royalBlueAccent.opacity(0.12))
-                            .frame(width: 72, height: 72)
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 32, weight: .semibold))
-                            .foregroundColor(Color.royalBlueAccent)
-                    }
-                    Text("Search the Dictionary")
-                        .font(.title2.bold())
-                        .foregroundColor(Color.darkForeground)
-                    Text("Search Chinese characters, pinyin, or English.")
-                        .font(.subheadline)
-                        .foregroundColor(Color.darkForeground.opacity(0.65))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                }
-                .frame(maxHeight: .infinity)
-            } else if results.entries.isEmpty {
-                VStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.roseAccent.opacity(0.12))
-                            .frame(width: 72, height: 72)
-                        Image(systemName: "text.magnifyingglass")
-                            .font(.system(size: 32, weight: .semibold))
-                            .foregroundColor(Color.roseAccent)
-                    }
-                    Text("No Matches Found")
-                        .font(.title2.bold())
-                        .foregroundColor(Color.darkForeground)
-                    Text("Try searching with different keywords, pinyin, or characters.")
-                        .font(.subheadline)
-                        .foregroundColor(Color.darkForeground.opacity(0.65))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                }
-                .frame(maxHeight: .infinity)
-            } else {
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(spacing: 12) {
-                        if results.hasMore {
-                            HStack {
-                                Image(systemName: "info.circle")
-                                    .font(.caption)
-                                Text("Showing the first 100 matches. Refine your search for more.")
-                                    .font(.caption)
-                            }
-                            .foregroundColor(Color.darkForeground.opacity(0.6))
-                            .padding(.vertical, 4)
+            VStack(spacing: 0) {
+                if !isLoading && loadError == nil {
+                    Picker("Search Scope", selection: $searchScope) {
+                        ForEach(SearchScope.allCases) { scope in
+                            Text(scope.rawValue).tag(scope)
                         }
-
-                        ForEach(results.entries) { entry in
-                            DictionaryEntryRow(entry: entry)
-                        }
-
-                        Text("Source: CC-CEDICT (MDBG) · CC BY-SA 4.0")
-                            .font(.caption)
-                            .foregroundColor(Color.darkForeground.opacity(0.5))
-                            .padding(.top, 12)
-                            .padding(.bottom, 24)
                     }
+                    .pickerStyle(.segmented)
                     .padding(.horizontal, 16)
-                    .padding(.top, 12)
+                    .padding(.top, 10)
+                    .padding(.bottom, 6)
+                }
+
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                            .tint(Color.darkForeground)
+                        Text("Loading dictionary…")
+                            .font(.headline)
+                            .foregroundColor(Color.darkForeground.opacity(0.8))
+                    }
+                    .frame(maxHeight: .infinity)
+                } else if let loadError {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.amberAccent)
+                        Text(loadError)
+                            .font(.subheadline)
+                            .foregroundColor(Color.darkForeground.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+
+                        Button {
+                            Task { await loadDictionary() }
+                        } label: {
+                            Text("Retry")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.royalBlueAccent)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .frame(maxHeight: .infinity)
+                } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    VStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.royalBlueAccent.opacity(0.12))
+                                .frame(width: 72, height: 72)
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 32, weight: .semibold))
+                                .foregroundColor(Color.royalBlueAccent)
+                        }
+                        Text("Search the Dictionary")
+                            .font(.title2.bold())
+                            .foregroundColor(Color.darkForeground)
+                        Text("Search Chinese characters, pinyin, or English.")
+                            .font(.subheadline)
+                            .foregroundColor(Color.darkForeground.opacity(0.65))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+                    .frame(maxHeight: .infinity)
+                } else if results.entries.isEmpty {
+                    VStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.roseAccent.opacity(0.12))
+                                .frame(width: 72, height: 72)
+                            Image(systemName: "text.magnifyingglass")
+                                .font(.system(size: 32, weight: .semibold))
+                                .foregroundColor(Color.roseAccent)
+                        }
+                        Text("No Matches Found")
+                            .font(.title2.bold())
+                            .foregroundColor(Color.darkForeground)
+                        Text("Try searching with different keywords or switching search scope.")
+                            .font(.subheadline)
+                            .foregroundColor(Color.darkForeground.opacity(0.65))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+                    .frame(maxHeight: .infinity)
+                } else {
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVStack(spacing: 12) {
+                            if results.hasMore {
+                                HStack {
+                                    Image(systemName: "info.circle")
+                                        .font(.caption)
+                                    Text("Showing the first 100 matches. Refine your search for more.")
+                                        .font(.caption)
+                                }
+                                .foregroundColor(Color.darkForeground.opacity(0.6))
+                                .padding(.vertical, 4)
+                            }
+
+                            ForEach(results.entries) { entry in
+                                DictionaryEntryRow(entry: entry)
+                            }
+
+                            Text("Source: CC-CEDICT (MDBG) · CC BY-SA 4.0")
+                                .font(.caption)
+                                .foregroundColor(Color.darkForeground.opacity(0.5))
+                                .padding(.top, 12)
+                                .padding(.bottom, 24)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                    }
                 }
             }
         }
@@ -614,10 +646,10 @@ struct DictionarySearchView: View {
         .searchable(
             text: $query,
             placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Chinese, pinyin, or English"
+            prompt: "Search Chinese, pinyin, or English"
         )
         .task { await loadDictionary() }
-        .task(id: query) { await searchDictionary() }
+        .task(id: "\(query)_\(searchScope.rawValue)") { await searchDictionary() }
     }
 
     @MainActor
@@ -640,7 +672,7 @@ struct DictionarySearchView: View {
             return
         }
 
-        let searchResults = await CEDICTStore.shared.search(query: trimmedQuery)
+        let searchResults = await CEDICTStore.shared.search(query: trimmedQuery, scope: searchScope)
         guard !Task.isCancelled else { return }
         results = searchResults
     }
