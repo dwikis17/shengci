@@ -275,7 +275,7 @@ struct WordCardView: View {
                 VStack(spacing: 12) {
                     // Pinyin Pronunciation
                     if let pinyin = primaryForm?.transcriptions.pinyin {
-                        Text(pinyin)
+                        Text(PinyinFormatter.display(pinyin))
                             .font(
                                 .system(
                                     size: 28,

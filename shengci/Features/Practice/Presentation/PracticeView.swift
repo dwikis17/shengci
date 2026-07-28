@@ -78,7 +78,11 @@ struct PracticeView: View {
                 Text(question.word.simplified)
                     .font(.system(size: 76, weight: .bold, design: .serif))
                     .foregroundColor(Color.darkForeground)
-                Text(question.word.forms.first?.transcriptions.pinyin ?? "")
+                Text(
+                    PinyinFormatter.display(
+                        question.word.forms.first?.transcriptions.pinyin ?? ""
+                    )
+                )
                     .font(.title3.weight(.semibold))
                     .foregroundColor(Color.royalBlueAccent)
             }

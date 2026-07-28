@@ -9,8 +9,144 @@ struct CEDICTEntry: Identifiable, Hashable, Sendable {
     let definitions: [String]
 }
 
+struct CEDICTSearchResult: Sendable {
+    nonisolated static let empty = CEDICTSearchResult(entries: [], hasMore: false)
+
+    let entries: [CEDICTEntry]
+    let hasMore: Bool
+}
+
+struct CEDICTSearchIndex: Sendable {
+    private struct IndexedKey: Sendable {
+        let key: String
+        let entryPosition: Int
+    }
+
+    private let entries: [CEDICTEntry]
+    private let simplifiedIndex: [IndexedKey]
+    private let traditionalIndex: [IndexedKey]
+    private let pinyinIndex: [IndexedKey]
+    private let englishIndex: [IndexedKey]
+
+    nonisolated init(entries: [CEDICTEntry]) {
+        self.entries = entries
+
+        var simplifiedIndex: [IndexedKey] = []
+        var traditionalIndex: [IndexedKey] = []
+        var pinyinIndex: [IndexedKey] = []
+        var englishIndex: [IndexedKey] = []
+
+        simplifiedIndex.reserveCapacity(entries.count)
+        traditionalIndex.reserveCapacity(entries.count)
+        pinyinIndex.reserveCapacity(entries.count)
+
+        for (entryPosition, entry) in entries.enumerated() {
+            simplifiedIndex.append(
+                IndexedKey(key: entry.simplified, entryPosition: entryPosition)
+            )
+            traditionalIndex.append(
+                IndexedKey(key: entry.traditional, entryPosition: entryPosition)
+            )
+            pinyinIndex.append(
+                IndexedKey(
+                    key: CEDICT.normalizePinyin(entry.pinyin),
+                    entryPosition: entryPosition
+                )
+            )
+
+            let tokens = entry.definitions
+                .flatMap { definition in
+                    definition.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+                }
+                .map { $0.lowercased() }
+
+            for token in Set(tokens) {
+                englishIndex.append(
+                    IndexedKey(key: token, entryPosition: entryPosition)
+                )
+            }
+        }
+
+        self.simplifiedIndex = Self.sorted(simplifiedIndex)
+        self.traditionalIndex = Self.sorted(traditionalIndex)
+        self.pinyinIndex = Self.sorted(pinyinIndex)
+        self.englishIndex = Self.sorted(englishIndex)
+    }
+
+    nonisolated func search(
+        _ query: String,
+        limit: Int = 100
+    ) -> CEDICTSearchResult {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return .empty }
+
+        let pinyinQuery = CEDICT.normalizePinyin(query)
+        let englishQuery = query.lowercased()
+        var matchingPositions = Set<Int>()
+
+        addMatches(for: query, from: simplifiedIndex, to: &matchingPositions)
+        addMatches(for: query, from: traditionalIndex, to: &matchingPositions)
+        addMatches(for: pinyinQuery, from: pinyinIndex, to: &matchingPositions)
+        addMatches(for: englishQuery, from: englishIndex, to: &matchingPositions)
+
+        guard !Task.isCancelled else { return .empty }
+
+        let orderedPositions = matchingPositions.sorted()
+        let hasMore = orderedPositions.count > limit
+        let results = orderedPositions.prefix(limit).map { entries[$0] }
+        return CEDICTSearchResult(entries: results, hasMore: hasMore)
+    }
+
+    nonisolated private static func sorted(_ index: [IndexedKey]) -> [IndexedKey] {
+        index.sorted { lhs, rhs in
+            lhs.key == rhs.key
+                ? lhs.entryPosition < rhs.entryPosition
+                : lhs.key < rhs.key
+        }
+    }
+
+    nonisolated private func addMatches(
+        for prefix: String,
+        from index: [IndexedKey],
+        to matchingPositions: inout Set<Int>
+    ) {
+        guard !prefix.isEmpty else { return }
+
+        var position = lowerBound(for: prefix, in: index)
+        var checkedEntries = 0
+
+        while position < index.count, index[position].key.hasPrefix(prefix) {
+            if checkedEntries.isMultiple(of: 256), Task.isCancelled {
+                return
+            }
+            matchingPositions.insert(index[position].entryPosition)
+            position += 1
+            checkedEntries += 1
+        }
+    }
+
+    nonisolated private func lowerBound(
+        for key: String,
+        in index: [IndexedKey]
+    ) -> Int {
+        var lower = 0
+        var upper = index.count
+
+        while lower < upper {
+            let midpoint = lower + (upper - lower) / 2
+            if index[midpoint].key < key {
+                lower = midpoint + 1
+            } else {
+                upper = midpoint
+            }
+        }
+
+        return lower
+    }
+}
+
 enum CEDICT {
-    static func load(from url: URL) throws -> [CEDICTEntry] {
+    nonisolated static func load(from url: URL) throws -> [CEDICTEntry] {
         let contents = try String(contentsOf: url, encoding: .utf8)
         return contents
             .split(whereSeparator: \.isNewline)
@@ -18,7 +154,7 @@ enum CEDICT {
             .compactMap { parse(String($0.element), id: $0.offset) }
     }
 
-    static func parse(_ line: String, id: Int = 0) -> CEDICTEntry? {
+    nonisolated static func parse(_ line: String, id: Int = 0) -> CEDICTEntry? {
         guard !line.hasPrefix("#") else { return nil }
         let fields = line.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
         guard fields.count == 3,
@@ -41,30 +177,7 @@ enum CEDICT {
         )
     }
 
-    static func search(_ query: String, in entries: [CEDICTEntry], limit: Int = 100) -> (entries: [CEDICTEntry], hasMore: Bool) {
-        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return ([], false) }
-
-        let pinyinQuery = normalizePinyin(query)
-        let englishQuery = query.lowercased()
-        var matches: [CEDICTEntry] = []
-
-        // ponytail: scans 124k bundled entries per query; add an index only if profiling shows typing lag.
-        for entry in entries where entry.simplified.hasPrefix(query)
-            || entry.traditional.hasPrefix(query)
-            || normalizePinyin(entry.pinyin).hasPrefix(pinyinQuery)
-            || entry.definitions.contains(where: { definition in
-                definition.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-                    .contains { $0.lowercased().hasPrefix(englishQuery) }
-            })
-        {
-            if matches.count == limit { return (matches, true) }
-            matches.append(entry)
-        }
-        return (matches, false)
-    }
-
-    static func normalizePinyin(_ value: String) -> String {
+    nonisolated static func normalizePinyin(_ value: String) -> String {
         value
             .folding(options: [.diacriticInsensitive, .widthInsensitive], locale: .current)
             .lowercased()
@@ -74,13 +187,12 @@ enum CEDICT {
 
 struct DictionarySearchView: View {
     @State private var query = ""
-    @State private var entries: [CEDICTEntry] = []
+    @State private var searchIndex: CEDICTSearchIndex?
+    @State private var results = CEDICTSearchResult.empty
     @State private var isLoading = true
     @State private var loadError: String?
 
     var body: some View {
-        let results = CEDICT.search(query, in: entries)
-
         ZStack {
             Color.creamBackground.ignoresSafeArea()
 
@@ -122,6 +234,7 @@ struct DictionarySearchView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Chinese, pinyin, or English")
         .task { await loadDictionary() }
+        .task(id: query) { await searchDictionary() }
     }
 
     @MainActor
@@ -133,11 +246,35 @@ struct DictionarySearchView: View {
         }
 
         do {
-            entries = try await Task.detached { try CEDICT.load(from: url) }.value
+            searchIndex = try await Task.detached {
+                let entries = try CEDICT.load(from: url)
+                return CEDICTSearchIndex(entries: entries)
+            }.value
         } catch {
             loadError = "The bundled CC-CEDICT file could not be read."
         }
         isLoading = false
+    }
+
+    @MainActor
+    private func searchDictionary() async {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, let searchIndex else {
+            results = .empty
+            return
+        }
+
+        let searchTask = Task.detached(priority: .userInitiated) {
+            searchIndex.search(query)
+        }
+        let searchResults = await withTaskCancellationHandler {
+            await searchTask.value
+        } onCancel: {
+            searchTask.cancel()
+        }
+
+        guard !Task.isCancelled else { return }
+        results = searchResults
     }
 }
 
@@ -156,7 +293,7 @@ private struct DictionaryEntryRow: View {
                         .foregroundColor(Color.darkForeground.opacity(0.55))
                 }
 
-                Text(entry.pinyin)
+                Text(PinyinFormatter.display(entry.pinyin))
                     .font(.subheadline)
                     .foregroundColor(Color.royalBlueAccent)
             }

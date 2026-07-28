@@ -116,7 +116,7 @@ struct SavedWordsView: View {
 
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 8) {
-                                    Text(item.pinyin)
+                                    Text(PinyinFormatter.display(item.pinyin))
                                         .font(.headline)
                                         .foregroundColor(Color.royalBlueAccent)
 
