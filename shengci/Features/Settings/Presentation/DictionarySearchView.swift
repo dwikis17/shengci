@@ -349,7 +349,11 @@ struct DictionarySearchView: View {
         )
         .toolbarColorScheme(.light, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .searchable(text: $query, prompt: "Chinese, pinyin, or English")
+        .searchable(
+            text: $query,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Chinese, pinyin, or English"
+        )
         .task { await loadDictionary() }
         .task(id: query) { await searchDictionary() }
     }
