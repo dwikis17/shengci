@@ -72,9 +72,10 @@ extension shengciWidgetAttributes.ContentState {
      }
 }
 
-#Preview("Notification", as: .content, using: shengciWidgetAttributes.preview) {
-   shengciWidgetLiveActivity()
-} contentStates: {
-    shengciWidgetAttributes.ContentState.smiley
-    shengciWidgetAttributes.ContentState.starEyes
-}
+// #Preview("Notification", as: .content, using: shengciWidgetAttributes.preview) {
+//    shengciWidgetLiveActivity()
+// } contentStates: {
+//     shengciWidgetAttributes.ContentState.smiley
+//     shengciWidgetAttributes.ContentState.starEyes
+// }
+

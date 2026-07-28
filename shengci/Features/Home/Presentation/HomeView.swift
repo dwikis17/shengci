@@ -10,6 +10,12 @@ import SwiftData
 import SwiftUI
 import UIKit
 
+// MARK: - Home Display Mode
+enum HomeDisplayMode {
+    case focused
+    case overview
+}
+
 // MARK: - Haptic Feedback Manager
 final class HapticManager {
     static let shared = HapticManager()
@@ -52,12 +58,17 @@ final class SpeechSynthesizerManager {
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var savedWords: [SavedWord]
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
     @StateObject private var viewModel = HomeViewModel()
     @State private var currentWordID: UUID?
 
+    @State private var displayMode: HomeDisplayMode = .focused
     @State private var isLevelPickerPresented: Bool = false
+    @State private var isRestoringProgress: Bool = false
+
+    @Namespace private var homeNamespace
 
     private var currentIndex: Int {
         if let currentWordID = currentWordID,
@@ -121,30 +132,49 @@ struct HomeView: View {
                 }
                 .frame(maxHeight: .infinity)
             } else {
-                // Scrollable Feed
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(
-                            Array(viewModel.wordList.enumerated()),
-                            id: \.element.id
-                        ) { index, word in
-                            WordCardView(
-                                word: word,
-                                isBookmarked: isWordSaved(word),
-                                onToggleBookmark: {
-                                    toggleBookmark(for: word)
+                // Main Content Views
+                Group {
+                    if displayMode == .overview {
+                        WordOverviewGrid(
+                            wordList: viewModel.wordList,
+                            currentWordID: $currentWordID,
+                            namespace: homeNamespace,
+                            isWordSaved: isWordSaved,
+                            onSelectWord: { selectedWord in
+                                selectWordFromOverview(selectedWord)
+                            }
+                        )
+                        .transition(reduceMotion ? .opacity : .identity)
+                    } else {
+                        // Scrollable Feed
+                        ScrollView(.vertical, showsIndicators: false) {
+                            LazyVStack(spacing: 0) {
+                                ForEach(
+                                    Array(viewModel.wordList.enumerated()),
+                                    id: \.element.id
+                                ) { index, word in
+                                    WordCardView(
+                                        word: word,
+                                        isBookmarked: isWordSaved(word),
+                                        namespace: homeNamespace,
+                                        onToggleBookmark: {
+                                            toggleBookmark(for: word)
+                                        }
+                                    )
+                                    .containerRelativeFrame([.horizontal, .vertical])
+                                    .id(word.id)
                                 }
-                            )
-                            .containerRelativeFrame([.horizontal, .vertical])
-                            .id(word.id)
+                            }
+                            .scrollTargetLayout()
                         }
+                        .scrollTargetBehavior(.paging)
+                        .scrollPosition(id: $currentWordID)
+                        .background(DisableScrollToTop())
+                        .ignoresSafeArea()
+                        .transition(reduceMotion ? .opacity : .identity)
                     }
-                    .scrollTargetLayout()
                 }
-                .scrollTargetBehavior(.paging)
-                .scrollPosition(id: $currentWordID)
-                .background(DisableScrollToTop())
-                .ignoresSafeArea()
+                .simultaneousGesture(pinchGesture)
 
                 // Pinned Header (Fixed on top, not scrollable)
                 HStack {
@@ -180,13 +210,50 @@ struct HomeView: View {
 
                     Spacer()
 
-                    // Subtle Counter Badge Text (No overlay or background)
-                    Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
-                        .font(.caption.monospacedDigit().weight(.medium))
-                        .foregroundColor(Color.darkForeground.opacity(0.55))
-                        .padding(.vertical, 6)
+                    // Grid / Feed Toggle Button & Counter
+                    HStack(spacing: 10) {
+                        Button {
+                            switchMode(
+                                to: displayMode == .focused ? .overview : .focused
+                            )
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(
+                                    systemName: displayMode == .focused
+                                        ? "square.grid.2x2.fill"
+                                        : "rectangle.portrait.on.rectangle.portrait.fill"
+                                )
+                                .font(.subheadline)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .overlay(
+                                Capsule().stroke(
+                                    Color.black.opacity(0.1),
+                                    lineWidth: 1
+                                )
+                            )
+                            .foregroundColor(Color.darkForeground)
+                        }
+                        .accessibilityLabel(
+                            displayMode == .focused
+                                ? "Switch to Overview Grid"
+                                : "Switch to Focused View"
+                        )
+                        .accessibilityHint(
+                            "Toggles between zoomed-out grid and full-screen card feed"
+                        )
+
+                        Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
+                            .font(.caption.monospacedDigit().weight(.medium))
+                            .foregroundColor(Color.darkForeground.opacity(0.55))
+                            .padding(.vertical, 6)
+                    }
                 }
                 .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .zIndex(10)
             }
         }
         .sheet(isPresented: $isLevelPickerPresented) {
@@ -196,25 +263,60 @@ struct HomeView: View {
         }
         .onAppear {
             if viewModel.currentLevel != selectedHSKLevel {
+                displayMode = .focused
                 viewModel.loadWords(level: selectedHSKLevel)
             } else if currentWordID == nil {
                 restoreProgress()
             }
         }
         .onChange(of: selectedHSKLevel) { newLevel in
+            displayMode = .focused
             viewModel.loadWords(level: newLevel)
         }
         .onChange(of: viewModel.wordList) { _ in
             restoreProgress()
         }
         .onChange(of: currentWordID) { newID in
-            HapticManager.shared.selection()
+            guard !isRestoringProgress else { return }
+            if displayMode == .focused {
+                HapticManager.shared.selection()
+            }
             saveProgress(for: newID)
         }
     }
 
+    private var pinchGesture: some Gesture {
+        MagnificationGesture()
+            .onEnded { finalScale in
+                if displayMode == .focused && finalScale < 0.85 {
+                    switchMode(to: .overview)
+                } else if displayMode == .overview && finalScale > 1.15 {
+                    switchMode(to: .focused)
+                }
+            }
+    }
+
+    private func switchMode(to newMode: HomeDisplayMode) {
+        guard displayMode != newMode else { return }
+        HapticManager.shared.impact(style: .light)
+        let animation: Animation? = reduceMotion
+            ? .easeOut(duration: 0.15)
+            : .spring(response: 0.38, dampingFraction: 0.82)
+        withAnimation(animation) {
+            displayMode = newMode
+        }
+    }
+
+    private func selectWordFromOverview(_ word: WordModel) {
+        HapticManager.shared.selection()
+        currentWordID = word.id
+        saveProgress(for: word.id)
+        switchMode(to: .focused)
+    }
+
     private func restoreProgress() {
         guard !viewModel.wordList.isEmpty else { return }
+        isRestoringProgress = true
         let savedIndex = UserDefaults.standard.integer(
             forKey: "hsk_progress_\(selectedHSKLevel)"
         )
@@ -223,6 +325,9 @@ struct HomeView: View {
             viewModel.wordList.count - 1
         )
         currentWordID = viewModel.wordList[validIndex].id
+        DispatchQueue.main.async {
+            isRestoringProgress = false
+        }
     }
 
     private func saveProgress(for wordID: UUID?) {
@@ -254,10 +359,156 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Word Overview Grid Component
+struct WordOverviewGrid: View {
+    let wordList: [WordModel]
+    @Binding var currentWordID: UUID?
+    let namespace: Namespace.ID
+    let isWordSaved: (WordModel) -> Bool
+    let onSelectWord: (WordModel) -> Void
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 95, maximum: 125), spacing: 12)
+    ]
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(wordList) { word in
+                        WordOverviewTile(
+                            word: word,
+                            isSelected: word.id == currentWordID,
+                            isSaved: isWordSaved(word),
+                            namespace: namespace,
+                            onSelect: {
+                                onSelectWord(word)
+                            }
+                        )
+                        .id(word.id)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 56)
+                .padding(.bottom, 40)
+            }
+            .background(DisableScrollToTop())
+            .onAppear {
+                if let currentWordID = currentWordID {
+                    proxy.scrollTo(currentWordID, anchor: .center)
+                }
+            }
+            .onChange(of: currentWordID) { newID in
+                if let newID = newID {
+                    withAnimation {
+                        proxy.scrollTo(newID, anchor: .center)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Word Overview Tile Component
+struct WordOverviewTile: View {
+    let word: WordModel
+    let isSelected: Bool
+    let isSaved: Bool
+    let namespace: Namespace.ID
+    let onSelect: () -> Void
+
+    private var pinyinText: String {
+        if let pinyin = word.forms.first?.transcriptions.pinyin {
+            return PinyinFormatter.display(pinyin)
+        }
+        return ""
+    }
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 4) {
+                HStack {
+                    Spacer()
+                    if isSaved {
+                        Image(systemName: "bookmark.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.roseAccent)
+                    }
+                }
+                .frame(height: 10)
+
+                Text(word.simplified)
+                    .font(.system(size: 24, weight: .bold, design: .serif))
+                    .foregroundColor(Color.darkForeground)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .matchedGeometryEffect(
+                        id: "overview-char-\(word.id)",
+                        in: namespace
+                    )
+
+                if !pinyinText.isEmpty {
+                    Text(pinyinText)
+                        .font(.caption2.weight(.medium))
+                        .foregroundColor(
+                            isSelected
+                                ? Color.royalBlueAccent
+                                : Color.darkForeground.opacity(0.7)
+                        )
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        isSelected
+                            ? Color.royalBlueAccent.opacity(0.12)
+                            : Color.warmIvoryCard
+                    )
+                    .matchedGeometryEffect(
+                        id: "overview-tile-\(word.id)",
+                        in: namespace
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        isSelected
+                            ? Color.royalBlueAccent
+                            : Color.black.opacity(0.06),
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+            .shadow(
+                color: isSelected
+                    ? Color.royalBlueAccent.opacity(0.15)
+                    : Color.black.opacity(0.03),
+                radius: isSelected ? 6 : 3,
+                x: 0,
+                y: 2
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(word.simplified), \(pinyinText)\(isSaved ? ", Bookmarked" : "")"
+        )
+        .accessibilityAddTraits(
+            isSelected ? [.isButton, .isSelected] : [.isButton]
+        )
+        .accessibilityHint("Double tap to jump to this word")
+    }
+}
+
 // MARK: - Word Card View (TikTok 1-word-per-screen layout)
 struct WordCardView: View {
     let word: WordModel
     let isBookmarked: Bool
+    let namespace: Namespace.ID
     let onToggleBookmark: () -> Void
 
     @State private var copiedFeedback: Bool = false
@@ -299,6 +550,10 @@ struct WordCardView: View {
                         )
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
+                        .matchedGeometryEffect(
+                            id: "overview-char-\(word.id)",
+                            in: namespace
+                        )
                         .onTapGesture {
                             playAudio()
                         }
@@ -448,7 +703,9 @@ struct WordCardView: View {
                                 )
                                 .font(.subheadline)
                             }
-                            .foregroundColor(isSpeaking ? Color.royalBlueAccent : Color.darkForeground)
+                            .foregroundColor(
+                                isSpeaking ? Color.royalBlueAccent : Color.darkForeground
+                            )
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
                         }
@@ -508,6 +765,10 @@ struct WordCardView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 24)
                         .fill(Color.warmIvoryCard)
+                        .matchedGeometryEffect(
+                            id: "overview-tile-\(word.id)",
+                            in: namespace
+                        )
                         .shadow(
                             color: Color.black.opacity(0.05),
                             radius: 16,
@@ -549,13 +810,41 @@ struct WordCardView: View {
 
 // MARK: - Cream Theme Color Palette Extension
 extension Color {
-    static let creamBackground = Color(red: 0.97, green: 0.95, blue: 0.92) // #FAF2EA Warm Cream
-    static let warmIvoryCard   = Color(red: 1.0, green: 0.99, blue: 0.97)   // Soft Ivory White
-    static let darkForeground   = Color(red: 0.15, green: 0.13, blue: 0.12)  // Deep Espresso Charcoal
-    static let royalBlueAccent  = Color(red: 0.20, green: 0.40, blue: 0.80)  // Slate Royal Blue
-    static let tealAccent       = Color(red: 0.12, green: 0.60, blue: 0.50)  // Warm Sage Teal
-    static let amberAccent      = Color(red: 0.82, green: 0.50, blue: 0.10)  // Terracotta Amber
-    static let roseAccent       = Color(red: 0.85, green: 0.25, blue: 0.32)  // Crimson Rose
+    static let creamBackground = Color(
+        red: 0.97,
+        green: 0.95,
+        blue: 0.92
+    )  // #FAF2EA Warm Cream
+    static let warmIvoryCard = Color(
+        red: 1.0,
+        green: 0.99,
+        blue: 0.97
+    )  // Soft Ivory White
+    static let darkForeground = Color(
+        red: 0.15,
+        green: 0.13,
+        blue: 0.12
+    )  // Deep Espresso Charcoal
+    static let royalBlueAccent = Color(
+        red: 0.20,
+        green: 0.40,
+        blue: 0.80
+    )  // Slate Royal Blue
+    static let tealAccent = Color(
+        red: 0.12,
+        green: 0.60,
+        blue: 0.50
+    )  // Warm Sage Teal
+    static let amberAccent = Color(
+        red: 0.82,
+        green: 0.50,
+        blue: 0.10
+    )  // Terracotta Amber
+    static let roseAccent = Color(
+        red: 0.85,
+        green: 0.25,
+        blue: 0.32
+    )  // Crimson Rose
 }
 
 // MARK: - HSK Level Picker Half-Sheet Component
