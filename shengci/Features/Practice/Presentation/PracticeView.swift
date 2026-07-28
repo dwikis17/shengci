@@ -9,6 +9,8 @@ struct PracticeView: View {
     @State private var score = 0
     @State private var missedWords: [WordModel] = []
 
+    @State private var isPracticing = false
+
     private var currentQuestion: PracticeQuestion? {
         questions.indices.contains(currentQuestionIndex) ? questions[currentQuestionIndex] : nil
     }
@@ -42,6 +44,18 @@ struct PracticeView: View {
                 for: .navigationBar
             )
             .toolbarColorScheme(.light, for: .navigationBar)
+            .toolbar {
+                if isPracticing {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(action: endSession) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(Color.darkForeground)
+                        }
+                    }
+                }
+            }
+            .toolbar(isPracticing ? .hidden : .visible, for: .tabBar)
         }
         .onAppear(perform: loadSelectedLevel)
         .onChange(of: selectedHSKLevel) { _ in
@@ -152,13 +166,24 @@ struct PracticeView: View {
                 .padding(16)
                 .background(Color.warmIvoryCard, in: RoundedRectangle(cornerRadius: 16))
             }
-            Button(action: startSession) {
-                Label("Practice Again", systemImage: "arrow.clockwise")
-                    .font(.headline)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 14)
-                    .background(Capsule().fill(Color.royalBlueAccent))
-                    .foregroundColor(.white)
+            HStack(spacing: 16) {
+                Button(action: endSession) {
+                    Label("Finish", systemImage: "checkmark")
+                        .font(.headline)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .background(Capsule().stroke(Color.royalBlueAccent, lineWidth: 2))
+                        .foregroundColor(Color.royalBlueAccent)
+                }
+
+                Button(action: startSession) {
+                    Label("Practice Again", systemImage: "arrow.clockwise")
+                        .font(.headline)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .background(Capsule().fill(Color.royalBlueAccent))
+                        .foregroundColor(.white)
+                }
             }
         }
         .padding(24)
@@ -199,9 +224,20 @@ struct PracticeView: View {
         selectedAnswer = nil
         score = 0
         missedWords = []
+        isPracticing = true
+    }
+
+    private func endSession() {
+        isPracticing = false
+        questions = []
+        currentQuestionIndex = 0
+        selectedAnswer = nil
+        score = 0
+        missedWords = []
     }
 
     private func resetSession() {
+        isPracticing = false
         questions = []
         currentQuestionIndex = 0
         selectedAnswer = nil

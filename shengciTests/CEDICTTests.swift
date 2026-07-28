@@ -20,6 +20,12 @@ private final class LoaderCounter: @unchecked Sendable {
     }
 }
 
+private func makeTempDir() -> URL {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
+}
+
 struct CEDICTTests {
     private let entries = [
         CEDICTEntry(id: 0, traditional: "你好", simplified: "你好", pinyin: "ni3 hao3", definitions: ["hello", "hi"]),
@@ -33,20 +39,42 @@ struct CEDICTTests {
         #expect(entry == CEDICTEntry(id: 7, traditional: "傳統", simplified: "简体", pinyin: "ni3 hao3", definitions: ["hello", "hi"]))
     }
 
-    @Test func searchesChineseToneFreePinyinAndEnglishPrefixes() {
-        let index = CEDICTSearchIndex(entries: entries)
+    @Test func searchesChineseToneFreePinyinAndEnglishPrefixes() async throws {
+        let tempDir = makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        #expect(index.search("你").entries.count == 2)
-        #expect(index.search("nǐ").entries.count == 2)
-        #expect(index.search("ni3").entries.count == 2)
-        #expect(index.search("hel").entries.map(\.simplified) == ["你好"])
+        let sampleEntries = entries
+        let store = CEDICTStore(databaseDirectory: tempDir, loader: { sampleEntries })
+
+        try await store.prepare()
+
+        let search1 = await store.search(query: "你")
+        #expect(search1.entries.count == 2)
+
+        let search2 = await store.search(query: "nǐ")
+        #expect(search2.entries.count == 2)
+
+        let search3 = await store.search(query: "ni3")
+        #expect(search3.entries.count == 2)
+
+        let search4 = await store.search(query: "hel")
+        #expect(search4.entries.map(\.simplified) == ["你好"])
     }
 
-    @Test func capsResults() {
+    @Test func capsResultsAndMaintainsSourceOrder() async throws {
+        let tempDir = makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
         let many = (0..<101).map { CEDICTEntry(id: $0, traditional: "字\($0)", simplified: "字\($0)", pinyin: "zi4", definitions: ["character"]) }
-        let results = CEDICTSearchIndex(entries: many).search("字")
+        let store = CEDICTStore(databaseDirectory: tempDir, loader: { many })
+
+        try await store.prepare()
+
+        let results = await store.search(query: "字")
         #expect(results.entries.count == 100)
         #expect(results.hasMore)
+        #expect(results.entries.first?.id == 0)
+        #expect(results.entries.last?.id == 99)
     }
 
     @Test func formatsNumberedPinyinWithToneMarks() {
@@ -57,60 +85,122 @@ struct CEDICTTests {
         #expect(PinyinFormatter.display("nǐ hǎo 110") == "nǐ hǎo 110")
     }
 
-    @Test func concurrentWarmAndIndexCallsCreateOneTask() async throws {
+    @Test func concurrentWarmAndPrepareCallsCreateOneTask() async throws {
+        let tempDir = makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
         let counter = LoaderCounter()
         let sampleEntries = entries
-        let store = CEDICTStore(loader: {
+        let store = CEDICTStore(databaseDirectory: tempDir, loader: {
             _ = counter.increment()
             try await Task.sleep(nanoseconds: 50_000_000)
-            return CEDICTSearchIndex(entries: sampleEntries)
+            return sampleEntries
         })
 
         async let warmCall: () = store.warm()
-        async let indexCall: CEDICTSearchIndex = store.index()
+        async let prepareCall: () = store.prepare()
 
         _ = await warmCall
-        let index = try await indexCall
+        try await prepareCall
 
         #expect(counter.value == 1)
-        #expect(index.search("你好").entries.count == 1)
+        let searchResult = await store.search(query: "你好")
+        #expect(searchResult.entries.count == 1)
     }
 
-    @Test func completedWarmUpReturnsCachedIndexWithoutReloading() async throws {
+    @Test func completedWarmUpReturnsCachedDatabaseWithoutReloading() async throws {
+        let tempDir = makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
         let counter = LoaderCounter()
         let sampleEntries = entries
-        let store = CEDICTStore(loader: {
+        let store = CEDICTStore(databaseDirectory: tempDir, loader: {
             _ = counter.increment()
-            return CEDICTSearchIndex(entries: sampleEntries)
+            return sampleEntries
         })
 
         await store.warm()
-        let firstResult = try await store.index()
-        let secondResult = try await store.index()
+        try await store.prepare()
+        try await store.prepare()
 
         #expect(counter.value == 1)
-        #expect(firstResult.search("你好").entries.count == 1)
-        #expect(secondResult.search("你好").entries.count == 1)
+        let firstResult = await store.search(query: "你好")
+        let secondResult = await store.search(query: "你好")
+
+        #expect(firstResult.entries.count == 1)
+        #expect(secondResult.entries.count == 1)
+    }
+
+    @Test func reopeningSameCacheKeyReusesDatabaseWithoutParsing() async throws {
+        let tempDir = makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let counter = LoaderCounter()
+        let sampleEntries = entries
+
+        let store1 = CEDICTStore(databaseDirectory: tempDir, schemaVersion: 1, buildVersion: "1.0", loader: {
+            _ = counter.increment()
+            return sampleEntries
+        })
+        try await store1.prepare()
+        #expect(counter.value == 1)
+
+        let store2 = CEDICTStore(databaseDirectory: tempDir, schemaVersion: 1, buildVersion: "1.0", loader: {
+            _ = counter.increment()
+            return sampleEntries
+        })
+        try await store2.prepare()
+        #expect(counter.value == 1) // Loader not called again!
+
+        let search = await store2.search(query: "你好")
+        #expect(search.entries.count == 1)
+    }
+
+    @Test func newAppBuildOrSchemaKeyRebuildsDatabase() async throws {
+        let tempDir = makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let counter = LoaderCounter()
+        let sampleEntries = entries
+
+        let store1 = CEDICTStore(databaseDirectory: tempDir, schemaVersion: 1, buildVersion: "1.0", loader: {
+            _ = counter.increment()
+            return sampleEntries
+        })
+        try await store1.prepare()
+        #expect(counter.value == 1)
+
+        let store2 = CEDICTStore(databaseDirectory: tempDir, schemaVersion: 2, buildVersion: "1.0", loader: {
+            _ = counter.increment()
+            return sampleEntries
+        })
+        try await store2.prepare()
+        #expect(counter.value == 2) // Rebuilt because schema version changed!
     }
 
     @Test func failedLoadClearsInFlightStateAndAllowsRetry() async throws {
+        let tempDir = makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
         let counter = LoaderCounter()
         let sampleEntries = entries
-        let store = CEDICTStore(loader: {
+        let store = CEDICTStore(databaseDirectory: tempDir, loader: {
             let current = counter.increment()
             if current == 1 {
                 throw NSError(domain: "TestError", code: 1, userInfo: nil)
             }
-            return CEDICTSearchIndex(entries: sampleEntries)
+            return sampleEntries
         })
 
         await #expect(throws: Error.self) {
-            try await store.index()
+            try await store.prepare()
         }
 
-        let retriedIndex = try await store.index()
+        try await store.prepare()
         #expect(counter.value == 2)
-        #expect(retriedIndex.search("你好").entries.count == 1)
+        let result = await store.search(query: "你好")
+        #expect(result.entries.count == 1)
     }
 }
+
 

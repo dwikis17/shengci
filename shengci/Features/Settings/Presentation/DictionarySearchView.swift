@@ -1,7 +1,8 @@
 import Foundation
+import SQLite3
 import SwiftUI
 
-struct CEDICTEntry: Identifiable, Hashable, Sendable {
+nonisolated struct CEDICTEntry: Identifiable, Hashable, Sendable {
     let id: Int
     let traditional: String
     let simplified: String
@@ -9,140 +10,11 @@ struct CEDICTEntry: Identifiable, Hashable, Sendable {
     let definitions: [String]
 }
 
-struct CEDICTSearchResult: Sendable {
+nonisolated struct CEDICTSearchResult: Sendable {
     nonisolated static let empty = CEDICTSearchResult(entries: [], hasMore: false)
 
     let entries: [CEDICTEntry]
     let hasMore: Bool
-}
-
-struct CEDICTSearchIndex: Sendable {
-    private struct IndexedKey: Sendable {
-        let key: String
-        let entryPosition: Int
-    }
-
-    private let entries: [CEDICTEntry]
-    private let simplifiedIndex: [IndexedKey]
-    private let traditionalIndex: [IndexedKey]
-    private let pinyinIndex: [IndexedKey]
-    private let englishIndex: [IndexedKey]
-
-    nonisolated init(entries: [CEDICTEntry]) {
-        self.entries = entries
-
-        var simplifiedIndex: [IndexedKey] = []
-        var traditionalIndex: [IndexedKey] = []
-        var pinyinIndex: [IndexedKey] = []
-        var englishIndex: [IndexedKey] = []
-
-        simplifiedIndex.reserveCapacity(entries.count)
-        traditionalIndex.reserveCapacity(entries.count)
-        pinyinIndex.reserveCapacity(entries.count)
-
-        for (entryPosition, entry) in entries.enumerated() {
-            simplifiedIndex.append(
-                IndexedKey(key: entry.simplified, entryPosition: entryPosition)
-            )
-            traditionalIndex.append(
-                IndexedKey(key: entry.traditional, entryPosition: entryPosition)
-            )
-            pinyinIndex.append(
-                IndexedKey(
-                    key: CEDICT.normalizePinyin(entry.pinyin),
-                    entryPosition: entryPosition
-                )
-            )
-
-            let tokens = entry.definitions
-                .flatMap { definition in
-                    definition.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-                }
-                .map { $0.lowercased() }
-
-            for token in Set(tokens) {
-                englishIndex.append(
-                    IndexedKey(key: token, entryPosition: entryPosition)
-                )
-            }
-        }
-
-        self.simplifiedIndex = Self.sorted(simplifiedIndex)
-        self.traditionalIndex = Self.sorted(traditionalIndex)
-        self.pinyinIndex = Self.sorted(pinyinIndex)
-        self.englishIndex = Self.sorted(englishIndex)
-    }
-
-    nonisolated func search(
-        _ query: String,
-        limit: Int = 100
-    ) -> CEDICTSearchResult {
-        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return .empty }
-
-        let pinyinQuery = CEDICT.normalizePinyin(query)
-        let englishQuery = query.lowercased()
-        var matchingPositions = Set<Int>()
-
-        addMatches(for: query, from: simplifiedIndex, to: &matchingPositions)
-        addMatches(for: query, from: traditionalIndex, to: &matchingPositions)
-        addMatches(for: pinyinQuery, from: pinyinIndex, to: &matchingPositions)
-        addMatches(for: englishQuery, from: englishIndex, to: &matchingPositions)
-
-        guard !Task.isCancelled else { return .empty }
-
-        let orderedPositions = matchingPositions.sorted()
-        let hasMore = orderedPositions.count > limit
-        let results = orderedPositions.prefix(limit).map { entries[$0] }
-        return CEDICTSearchResult(entries: results, hasMore: hasMore)
-    }
-
-    nonisolated private static func sorted(_ index: [IndexedKey]) -> [IndexedKey] {
-        index.sorted { lhs, rhs in
-            lhs.key == rhs.key
-                ? lhs.entryPosition < rhs.entryPosition
-                : lhs.key < rhs.key
-        }
-    }
-
-    nonisolated private func addMatches(
-        for prefix: String,
-        from index: [IndexedKey],
-        to matchingPositions: inout Set<Int>
-    ) {
-        guard !prefix.isEmpty else { return }
-
-        var position = lowerBound(for: prefix, in: index)
-        var checkedEntries = 0
-
-        while position < index.count, index[position].key.hasPrefix(prefix) {
-            if checkedEntries.isMultiple(of: 256), Task.isCancelled {
-                return
-            }
-            matchingPositions.insert(index[position].entryPosition)
-            position += 1
-            checkedEntries += 1
-        }
-    }
-
-    nonisolated private func lowerBound(
-        for key: String,
-        in index: [IndexedKey]
-    ) -> Int {
-        var lower = 0
-        var upper = index.count
-
-        while lower < upper {
-            let midpoint = lower + (upper - lower) / 2
-            if index[midpoint].key < key {
-                lower = midpoint + 1
-            } else {
-                upper = midpoint
-            }
-        }
-
-        return lower
-    }
 }
 
 enum CEDICT {
@@ -187,62 +59,333 @@ enum CEDICT {
     }
 }
 
+private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+nonisolated final class SQLiteDatabase: @unchecked Sendable {
+    private var db: OpaquePointer?
+
+    init(path: String, readOnly: Bool) throws {
+        let flags = readOnly
+            ? (SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX)
+            : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX)
+        if sqlite3_open_v2(path, &db, flags, nil) != SQLITE_OK {
+            let errorMsg = db.map { String(cString: sqlite3_errmsg($0)) } ?? "Unknown error"
+            throw NSError(domain: "SQLiteDatabase", code: 1, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+        }
+    }
+
+    deinit {
+        if let db {
+            sqlite3_close_v2(db)
+        }
+    }
+
+    func execute(_ sql: String) throws {
+        var errmsg: UnsafeMutablePointer<CChar>?
+        if sqlite3_exec(db, sql, nil, nil, &errmsg) != SQLITE_OK {
+            let message = errmsg.map { String(cString: $0) } ?? "Unknown error"
+            sqlite3_free(errmsg)
+            throw NSError(domain: "SQLiteDatabase", code: 2, userInfo: [NSLocalizedDescriptionKey: message])
+        }
+    }
+
+    func createSchema() throws {
+        let sql = """
+        PRAGMA journal_mode = MEMORY;
+        PRAGMA synchronous = OFF;
+
+        CREATE TABLE IF NOT EXISTS entries (
+            id INTEGER PRIMARY KEY,
+            simplified TEXT NOT NULL,
+            traditional TEXT NOT NULL,
+            pinyin TEXT NOT NULL,
+            pinyin_normalized TEXT NOT NULL,
+            definitions TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_entries_simplified ON entries(simplified);
+        CREATE INDEX IF NOT EXISTS idx_entries_traditional ON entries(traditional);
+        CREATE INDEX IF NOT EXISTS idx_entries_pinyin_norm ON entries(pinyin_normalized);
+
+        CREATE TABLE IF NOT EXISTS english_tokens (
+            token TEXT NOT NULL,
+            entry_id INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_english_tokens_token ON english_tokens(token);
+        """
+        try execute(sql)
+    }
+
+    func insert(entries: [CEDICTEntry]) throws {
+        try execute("BEGIN TRANSACTION;")
+
+        var stmtEntries: OpaquePointer?
+        let sqlEntries = "INSERT INTO entries (id, simplified, traditional, pinyin, pinyin_normalized, definitions) VALUES (?, ?, ?, ?, ?, ?);"
+        guard sqlite3_prepare_v2(db, sqlEntries, -1, &stmtEntries, nil) == SQLITE_OK, let stmtEntries else {
+            let msg = db.map { String(cString: sqlite3_errmsg($0)) } ?? "Error preparing entry statement"
+            try? execute("ROLLBACK;")
+            throw NSError(domain: "SQLiteDatabase", code: 3, userInfo: [NSLocalizedDescriptionKey: msg])
+        }
+        defer { sqlite3_finalize(stmtEntries) }
+
+        var stmtTokens: OpaquePointer?
+        let sqlTokens = "INSERT INTO english_tokens (token, entry_id) VALUES (?, ?);"
+        guard sqlite3_prepare_v2(db, sqlTokens, -1, &stmtTokens, nil) == SQLITE_OK, let stmtTokens else {
+            let msg = db.map { String(cString: sqlite3_errmsg($0)) } ?? "Error preparing token statement"
+            try? execute("ROLLBACK;")
+            throw NSError(domain: "SQLiteDatabase", code: 4, userInfo: [NSLocalizedDescriptionKey: msg])
+        }
+        defer { sqlite3_finalize(stmtTokens) }
+
+        let encoder = JSONEncoder()
+
+        for entry in entries {
+            let normalizedPinyin = CEDICT.normalizePinyin(entry.pinyin)
+            let jsonDefsData = (try? encoder.encode(entry.definitions)) ?? Data()
+            let jsonDefs = String(data: jsonDefsData, encoding: .utf8) ?? "[]"
+
+            sqlite3_bind_int64(stmtEntries, 1, Int64(entry.id))
+            sqlite3_bind_text(stmtEntries, 2, entry.simplified, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(stmtEntries, 3, entry.traditional, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(stmtEntries, 4, entry.pinyin, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(stmtEntries, 5, normalizedPinyin, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(stmtEntries, 6, jsonDefs, -1, SQLITE_TRANSIENT)
+
+            if sqlite3_step(stmtEntries) != SQLITE_DONE {
+                let msg = db.map { String(cString: sqlite3_errmsg($0)) } ?? "Error inserting entry"
+                try? execute("ROLLBACK;")
+                throw NSError(domain: "SQLiteDatabase", code: 5, userInfo: [NSLocalizedDescriptionKey: msg])
+            }
+            sqlite3_reset(stmtEntries)
+
+            let englishTokens = Set(
+                entry.definitions
+                    .flatMap { $0.split(whereSeparator: { !$0.isLetter && !$0.isNumber }) }
+                    .map { $0.lowercased() }
+            )
+
+            for token in englishTokens {
+                sqlite3_bind_text(stmtTokens, 1, token, -1, SQLITE_TRANSIENT)
+                sqlite3_bind_int64(stmtTokens, 2, Int64(entry.id))
+
+                if sqlite3_step(stmtTokens) != SQLITE_DONE {
+                    let msg = db.map { String(cString: sqlite3_errmsg($0)) } ?? "Error inserting token"
+                    try? execute("ROLLBACK;")
+                    throw NSError(domain: "SQLiteDatabase", code: 6, userInfo: [NSLocalizedDescriptionKey: msg])
+                }
+                sqlite3_reset(stmtTokens)
+            }
+        }
+
+        try execute("COMMIT;")
+    }
+
+    func countEntries() throws -> Int {
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM entries;", -1, &stmt, nil) == SQLITE_OK, let stmt else {
+            throw NSError(domain: "SQLiteDatabase", code: 7, userInfo: [NSLocalizedDescriptionKey: "Failed to prepare count query"])
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        if sqlite3_step(stmt) == SQLITE_ROW {
+            return Int(sqlite3_column_int64(stmt, 0))
+        }
+        return 0
+    }
+
+    func search(query: String, limit: Int = 100) -> CEDICTSearchResult {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return .empty }
+
+        let pinyinQuery = CEDICT.normalizePinyin(trimmedQuery)
+        let englishQuery = trimmedQuery.lowercased()
+        var matchingIDs = Set<Int>()
+
+        // 1. Simplified Chinese prefix
+        addMatchingIDs(
+            sql: "SELECT id FROM entries WHERE simplified >= ? AND simplified < ?;",
+            lowerBound: trimmedQuery,
+            upperBound: trimmedQuery + "\u{FFFF}",
+            into: &matchingIDs
+        )
+
+        // 2. Traditional Chinese prefix
+        addMatchingIDs(
+            sql: "SELECT id FROM entries WHERE traditional >= ? AND traditional < ?;",
+            lowerBound: trimmedQuery,
+            upperBound: trimmedQuery + "\u{FFFF}",
+            into: &matchingIDs
+        )
+
+        // 3. Pinyin normalized prefix
+        if !pinyinQuery.isEmpty {
+            addMatchingIDs(
+                sql: "SELECT id FROM entries WHERE pinyin_normalized >= ? AND pinyin_normalized < ?;",
+                lowerBound: pinyinQuery,
+                upperBound: pinyinQuery + "\u{FFFF}",
+                into: &matchingIDs
+            )
+        }
+
+        // 4. English token prefix
+        if !englishQuery.isEmpty {
+            addMatchingIDs(
+                sql: "SELECT entry_id FROM english_tokens WHERE token >= ? AND token < ?;",
+                lowerBound: englishQuery,
+                upperBound: englishQuery + "\u{FFFF}",
+                into: &matchingIDs
+            )
+        }
+
+        guard !Task.isCancelled else { return .empty }
+
+        let sortedIDs = matchingIDs.sorted()
+        let hasMore = sortedIDs.count > limit
+        let pageIDs = Array(sortedIDs.prefix(limit))
+        if pageIDs.isEmpty {
+            return .empty
+        }
+
+        let entries = fetchEntries(for: pageIDs)
+        return CEDICTSearchResult(entries: entries, hasMore: hasMore)
+    }
+
+    private func addMatchingIDs(sql: String, lowerBound: String, upperBound: String, into matchingIDs: inout Set<Int>) {
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK, let stmt else { return }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_text(stmt, 1, lowerBound, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 2, upperBound, -1, SQLITE_TRANSIENT)
+
+        var checkCounter = 0
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            checkCounter += 1
+            if checkCounter.isMultiple(of: 256), Task.isCancelled {
+                return
+            }
+            let entryID = Int(sqlite3_column_int64(stmt, 0))
+            matchingIDs.insert(entryID)
+        }
+    }
+
+    private func fetchEntries(for pageIDs: [Int]) -> [CEDICTEntry] {
+        guard !pageIDs.isEmpty else { return [] }
+        let placeholders = pageIDs.map { _ in "?" }.joined(separator: ",")
+        let sql = "SELECT id, traditional, simplified, pinyin, definitions FROM entries WHERE id IN (\(placeholders)) ORDER BY id ASC;"
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK, let stmt else { return [] }
+        defer { sqlite3_finalize(stmt) }
+
+        for (index, id) in pageIDs.enumerated() {
+            sqlite3_bind_int64(stmt, Int32(index + 1), Int64(id))
+        }
+
+        var results: [CEDICTEntry] = []
+        results.reserveCapacity(pageIDs.count)
+
+        let decoder = JSONDecoder()
+
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let id = Int(sqlite3_column_int64(stmt, 0))
+            let trad = String(cString: sqlite3_column_text(stmt, 1))
+            let simp = String(cString: sqlite3_column_text(stmt, 2))
+            let pin = String(cString: sqlite3_column_text(stmt, 3))
+            let defsStr = String(cString: sqlite3_column_text(stmt, 4))
+            let defsData = defsStr.data(using: .utf8) ?? Data()
+            let defs = (try? decoder.decode([String].self, from: defsData)) ?? []
+
+            results.append(CEDICTEntry(id: id, traditional: trad, simplified: simp, pinyin: pin, definitions: defs))
+        }
+
+        return results
+    }
+}
+
 actor CEDICTStore {
     static let shared = CEDICTStore()
-    private var loadTask: Task<CEDICTSearchIndex, Error>?
-    private var cachedIndex: CEDICTSearchIndex?
-    private let loader: @Sendable () async throws -> CEDICTSearchIndex
 
-    init(loader: @escaping @Sendable () async throws -> CEDICTSearchIndex) {
+    private var database: SQLiteDatabase?
+    private var buildTask: Task<Void, Error>?
+
+    private let databaseDirectory: URL
+    private let sourceURL: URL?
+    private let schemaVersion: Int
+    private let buildVersion: String
+    private let loader: (@Sendable () async throws -> [CEDICTEntry])?
+
+    init(
+        databaseDirectory: URL? = nil,
+        sourceURL: URL? = nil,
+        schemaVersion: Int = 1,
+        buildVersion: String? = nil,
+        loader: (@Sendable () async throws -> [CEDICTEntry])? = nil
+    ) {
+        let appSupport = databaseDirectory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        self.databaseDirectory = appSupport
+        self.sourceURL = sourceURL ?? Bundle.main.url(forResource: "cedict_ts", withExtension: "u8")
+        self.schemaVersion = schemaVersion
+        self.buildVersion = buildVersion ?? (Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1")
         self.loader = loader
     }
 
-    init() {
-        self.init(loader: CEDICTStore.defaultLoader)
-    }
-
-    private static func defaultLoader() async throws -> CEDICTSearchIndex {
-        guard let url = Bundle.main.url(forResource: "cedict_ts", withExtension: "u8") else {
-            throw NSError(
-                domain: "CEDICT",
-                code: 404,
-                userInfo: [NSLocalizedDescriptionKey: "The bundled CC-CEDICT file could not be found."]
-            )
-        }
-        let entries = try CEDICT.load(from: url)
-        return CEDICTSearchIndex(entries: entries)
-    }
-
     func warm() {
-        _ = fetchOrStartTask(priority: .utility)
+        _ = fetchOrStartBuildTask(priority: .utility)
     }
 
-    func index() async throws -> CEDICTSearchIndex {
-        if let cachedIndex {
-            return cachedIndex
+    func prepare() async throws {
+        if database != nil {
+            return
         }
-        let task = fetchOrStartTask(priority: .userInitiated)
-        return try await task.value
+        let task = fetchOrStartBuildTask(priority: .userInitiated)
+        try await task.value
     }
 
-    private func fetchOrStartTask(priority: TaskPriority) -> Task<CEDICTSearchIndex, Error> {
-        if let cachedIndex {
-            return Task { cachedIndex }
+    func search(query: String, limit: Int = 100) async -> CEDICTSearchResult {
+        if database == nil {
+            do {
+                try await prepare()
+            } catch {
+                return .empty
+            }
         }
-        if let existingTask = loadTask {
+        guard let database else { return .empty }
+        return database.search(query: query, limit: limit)
+    }
+
+    private func fetchOrStartBuildTask(priority: TaskPriority) -> Task<Void, Error> {
+        if database != nil {
+            return Task {}
+        }
+        if let existingTask = buildTask {
             return existingTask
         }
 
+        let databaseDirectory = self.databaseDirectory
+        let sourceURL = self.sourceURL
+        let schemaVersion = self.schemaVersion
+        let buildVersion = self.buildVersion
         let loader = self.loader
+
         let task = Task.detached(priority: priority) {
-            try await loader()
+            try await CEDICTStore.performBuild(
+                databaseDirectory: databaseDirectory,
+                sourceURL: sourceURL,
+                schemaVersion: schemaVersion,
+                buildVersion: buildVersion,
+                loader: loader
+            )
         }
-        loadTask = task
+        buildTask = task
 
         Task { [weak self] in
             do {
-                let result = try await task.value
-                await self?.didComplete(result: result)
+                try await task.value
+                let dbPath = databaseDirectory.appendingPathComponent(
+                    CEDICTStore.cacheFileName(schemaVersion: schemaVersion, buildVersion: buildVersion)
+                ).path
+                let db = try SQLiteDatabase(path: dbPath, readOnly: true)
+                await self?.didComplete(database: db)
             } catch {
                 await self?.didFail()
             }
@@ -251,19 +394,103 @@ actor CEDICTStore {
         return task
     }
 
-    private func didComplete(result: CEDICTSearchIndex) {
-        cachedIndex = result
-        loadTask = nil
+    private func didComplete(database: SQLiteDatabase) {
+        self.database = database
+        self.buildTask = nil
     }
 
     private func didFail() {
-        loadTask = nil
+        self.database = nil
+        self.buildTask = nil
+    }
+
+    private static func cacheFileName(schemaVersion: Int, buildVersion: String) -> String {
+        "dictionary-v\(schemaVersion)-\(buildVersion).sqlite"
+    }
+
+    private static func performBuild(
+        databaseDirectory: URL,
+        sourceURL: URL?,
+        schemaVersion: Int,
+        buildVersion: String,
+        loader: (@Sendable () async throws -> [CEDICTEntry])?
+    ) async throws {
+        let fm = FileManager.default
+        try? fm.createDirectory(at: databaseDirectory, withIntermediateDirectories: true)
+
+        let targetFileName = cacheFileName(schemaVersion: schemaVersion, buildVersion: buildVersion)
+        let destinationURL = databaseDirectory.appendingPathComponent(targetFileName)
+        let stagingURL = databaseDirectory.appendingPathComponent(targetFileName + ".staging")
+
+        // 1. Clean up old databases in databaseDirectory that don't match current cacheFileName
+        if let files = try? fm.contentsOfDirectory(at: databaseDirectory, includingPropertiesForKeys: nil) {
+            for file in files {
+                let name = file.lastPathComponent
+                if name.hasPrefix("dictionary-v") && name != targetFileName && name != targetFileName + ".staging" {
+                    try? fm.removeItem(at: file)
+                }
+            }
+        }
+
+        // 2. If destination already exists, validate it
+        if fm.fileExists(atPath: destinationURL.path) {
+            do {
+                let testDB = try SQLiteDatabase(path: destinationURL.path, readOnly: true)
+                let count = try testDB.countEntries()
+                if count > 0 {
+                    return // Valid database exists
+                }
+            } catch {
+                try? fm.removeItem(at: destinationURL)
+            }
+        }
+
+        // 3. Clean up staging file before build
+        try? fm.removeItem(at: stagingURL)
+
+        // 4. Load entries
+        let entries: [CEDICTEntry]
+        if let loader {
+            entries = try await loader()
+        } else if let sourceURL {
+            entries = try CEDICT.load(from: sourceURL)
+        } else {
+            throw NSError(domain: "CEDICT", code: 404, userInfo: [NSLocalizedDescriptionKey: "The bundled CC-CEDICT file could not be found."])
+        }
+
+        // 5. Build into staging file
+        do {
+            let stagingDB = try SQLiteDatabase(path: stagingURL.path, readOnly: false)
+            try stagingDB.createSchema()
+            try stagingDB.insert(entries: entries)
+            // Close stagingDB handle on deinit
+        } catch {
+            try? fm.removeItem(at: stagingURL)
+            throw error
+        }
+
+        // 6. Validate staging file
+        do {
+            let validationDB = try SQLiteDatabase(path: stagingURL.path, readOnly: true)
+            let count = try validationDB.countEntries()
+            guard count > 0 else {
+                throw NSError(domain: "CEDICT", code: 500, userInfo: [NSLocalizedDescriptionKey: "Staging database contains no entries."])
+            }
+        } catch {
+            try? fm.removeItem(at: stagingURL)
+            throw error
+        }
+
+        // 7. Atomic replace
+        if fm.fileExists(atPath: destinationURL.path) {
+            try fm.removeItem(at: destinationURL)
+        }
+        try fm.moveItem(at: stagingURL, to: destinationURL)
     }
 }
 
 struct DictionarySearchView: View {
     @State private var query = ""
-    @State private var searchIndex: CEDICTSearchIndex?
     @State private var results = CEDICTSearchResult.empty
     @State private var isLoading = true
     @State private var loadError: String?
@@ -398,7 +625,7 @@ struct DictionarySearchView: View {
         isLoading = true
         loadError = nil
         do {
-            searchIndex = try await CEDICTStore.shared.index()
+            try await CEDICTStore.shared.prepare()
         } catch {
             loadError = error.localizedDescription
         }
@@ -407,25 +634,18 @@ struct DictionarySearchView: View {
 
     @MainActor
     private func searchDictionary() async {
-        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty, let searchIndex else {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
             results = .empty
             return
         }
 
-        let searchTask = Task.detached(priority: .userInitiated) {
-            searchIndex.search(query)
-        }
-        let searchResults = await withTaskCancellationHandler {
-            await searchTask.value
-        } onCancel: {
-            searchTask.cancel()
-        }
-
+        let searchResults = await CEDICTStore.shared.search(query: trimmedQuery)
         guard !Task.isCancelled else { return }
         results = searchResults
     }
 }
+
 
 private struct DictionaryEntryRow: View {
     let entry: CEDICTEntry
