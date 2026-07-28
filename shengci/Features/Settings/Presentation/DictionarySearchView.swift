@@ -59,9 +59,9 @@ enum CEDICT {
     }
 }
 
-private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+nonisolated private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
-extension Character {
+nonisolated extension Character {
     var isHanzi: Bool {
         guard let scalar = unicodeScalars.first, unicodeScalars.count == 1 else { return false }
         switch scalar.value {
@@ -239,7 +239,7 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
                 sql: "SELECT id FROM entries WHERE simplified = ? OR traditional = ?;",
                 patterns: [trimmedQuery, trimmedQuery],
                 into: &matchingIDs,
-                orderedOutput: &priorityIDs
+                priorityIDs: &priorityIDs
             )
 
             // 1b. Full query substring match
@@ -259,7 +259,7 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
                         sql: "SELECT id FROM entries WHERE simplified = ? OR traditional = ?;",
                         patterns: [charStr, charStr],
                         into: &matchingIDs,
-                        orderedOutput: &priorityIDs
+                        priorityIDs: &priorityIDs
                     )
                     // Substring match for single character only if single character query
                     if hanziChars.count == 1 {
@@ -333,7 +333,7 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         return CEDICTSearchResult(entries: finalEntries, hasMore: hasMore)
     }
 
-    private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>, orderedOutput: inout [Int]) {
+    private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>, priorityIDs: inout [Int]) {
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK, let stmt else { return }
         defer { sqlite3_finalize(stmt) }
@@ -350,8 +350,13 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
             }
             let entryID = Int(sqlite3_column_int64(stmt, 0))
             matchingIDs.insert(entryID)
-            orderedOutput.append(entryID)
+            priorityIDs.append(entryID)
         }
+    }
+
+    private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>) {
+        var dummy: [Int] = []
+        addMatchingIDs(sql: sql, patterns: patterns, into: &matchingIDs, priorityIDs: &dummy)
     }
 
     private func filterEntries(_ entries: [CEDICTEntry], for query: String) -> [CEDICTEntry] {
