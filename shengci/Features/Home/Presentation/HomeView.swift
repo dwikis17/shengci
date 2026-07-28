@@ -376,6 +376,7 @@ struct WordCardView: View {
                                     .foregroundColor(Color.darkForeground.opacity(0.6))
                             }
                         }
+                        .background(DisableScrollToTop())
                     }
 
                     // Meanings List
@@ -688,24 +689,40 @@ private final class DisableScrollToTopView: UIView {
         disableScrollToTop()
     }
 
-    private func disableScrollToTop() {
-        var current: UIView? = self
-        while let view = current {
-            if let scrollView = view as? UIScrollView {
-                scrollView.scrollsToTop = false
-                break
+    func disableScrollToTop() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            var current: UIView? = self
+            while let view = current {
+                if let scrollView = view as? UIScrollView {
+                    scrollView.scrollsToTop = false
+                }
+                current = view.superview
             }
-            current = view.superview
+            if let window = self.window {
+                self.disableAllScrollsToTop(in: window)
+            }
+        }
+    }
+
+    private func disableAllScrollsToTop(in view: UIView) {
+        if let scrollView = view as? UIScrollView {
+            scrollView.scrollsToTop = false
+        }
+        for subview in view.subviews {
+            disableAllScrollsToTop(in: subview)
         }
     }
 }
 
 private struct DisableScrollToTop: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
+    func makeUIView(context: Context) -> DisableScrollToTopView {
         DisableScrollToTopView()
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_ uiView: DisableScrollToTopView, context: Context) {
+        uiView.disableScrollToTop()
+    }
 }
 
 #Preview {
