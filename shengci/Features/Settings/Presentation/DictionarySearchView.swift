@@ -64,6 +64,7 @@ private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.sel
 enum SearchScope: String, CaseIterable, Identifiable, Sendable {
     case all = "All"
     case hanzi = "Hanzi"
+    case draw = "Draw"
     case pinyin = "Pinyin"
     case english = "English"
 
@@ -213,7 +214,7 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
 
         var matchingIDs = Set<Int>()
 
-        if scope == .all || scope == .hanzi {
+        if scope == .all || scope == .hanzi || scope == .draw {
             // 1. Simplified & Traditional Chinese substring
             addMatchingIDs(
                 sql: "SELECT id FROM entries WHERE simplified LIKE ? OR traditional LIKE ?;",
@@ -541,6 +542,11 @@ struct DictionarySearchView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
                     .padding(.bottom, 6)
+                    .onChange(of: searchScope) { newScope in
+                        if newScope == .draw {
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                    }
                 }
 
                 if isLoading {
@@ -647,6 +653,22 @@ struct DictionarySearchView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 12)
                     }
+                }
+
+                if searchScope == .draw {
+                    HandwritingCanvasView(
+                        onSelectCandidate: { candidate in
+                            query += candidate
+                        },
+                        onClearQuery: {
+                            query = ""
+                        },
+                        onBackspace: {
+                            if !query.isEmpty {
+                                query.removeLast()
+                            }
+                        }
+                    )
                 }
             }
         }
