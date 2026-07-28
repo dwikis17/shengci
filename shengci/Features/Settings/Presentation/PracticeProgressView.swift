@@ -2,12 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct PracticeProgressView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \PracticedWord.lastPracticedAt, order: .reverse)
-    private var practicedWords: [PracticedWord]
-
-    @State private var levelToReset: Int?
-    @State private var showResetAlert = false
+    @Query private var allSessions: [PracticeSessionRecord]
 
     private let hskLevels = [1, 2, 3, 4, 5, 6, 7]
 
@@ -15,8 +10,14 @@ struct PracticeProgressView: View {
         "HSK \(level == 7 ? "7-9" : "\(level)")"
     }
 
-    private func wordsForLevel(_ level: Int) -> [PracticedWord] {
-        practicedWords.filter { $0.hskLevel == level }
+    private func sessionCount(for level: Int) -> Int {
+        allSessions.filter { $0.hskLevel == level }.count
+    }
+
+    private func uniqueWordCount(for level: Int) -> Int {
+        let levelSessions = allSessions.filter { $0.hskLevel == level }
+        let words = levelSessions.flatMap { $0.items.map { $0.simplified } }
+        return Set(words).count
     }
 
     var body: some View {
@@ -24,86 +25,55 @@ struct PracticeProgressView: View {
             Color.creamBackground
                 .ignoresSafeArea()
 
-            if practicedWords.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "chart.bar.doc.horizontal")
-                        .font(.system(size: 56))
-                        .foregroundColor(Color.darkForeground.opacity(0.35))
-                    Text("No Practice Progress Yet")
-                        .font(.headline)
-                        .foregroundColor(Color.darkForeground)
-                    Text("Complete vocabulary practice sessions to track your mastered words here.")
-                        .font(.subheadline)
-                        .foregroundColor(Color.darkForeground.opacity(0.65))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                }
-            } else {
-                List {
+            List {
+                Section {
                     ForEach(hskLevels, id: \.self) { level in
-                        let words = wordsForLevel(level)
-                        if !words.isEmpty {
-                            Section {
-                                ForEach(words) { item in
-                                    HStack(spacing: 14) {
-                                        Text(item.simplified)
-                                            .font(.system(size: 32, weight: .bold, design: .serif))
-                                            .foregroundColor(Color.darkForeground)
+                        let sCount = sessionCount(for: level)
+                        let wCount = uniqueWordCount(for: level)
 
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            HStack(spacing: 8) {
-                                                Text(PinyinFormatter.display(item.pinyin))
-                                                    .font(.headline)
-                                                    .foregroundColor(Color.royalBlueAccent)
-
-                                                if !item.traditional.isEmpty && item.traditional != item.simplified {
-                                                    Text("(\(item.traditional))")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(Color.darkForeground.opacity(0.5))
-                                                }
-                                            }
-
-                                            if !item.meanings.isEmpty {
-                                                Text(item.meanings.joined(separator: ", "))
-                                                    .font(.caption)
-                                                    .foregroundColor(Color.darkForeground.opacity(0.75))
-                                                    .lineLimit(2)
-                                            }
-                                        }
-
-                                        Spacer()
-
-                                        VStack(alignment: .trailing, spacing: 2) {
-                                            Text("\(item.timesPracticed)x")
-                                                .font(.caption.bold())
-                                                .foregroundColor(Color.tealAccent)
-                                            Text(item.lastPracticedAt, style: .date)
-                                                .font(.caption2)
-                                                .foregroundColor(Color.darkForeground.opacity(0.5))
-                                        }
-                                    }
-                                    .padding(.vertical, 4)
-                                    .listRowBackground(Color.warmIvoryCard)
+                        NavigationLink {
+                            HSKLevelSessionsView(hskLevel: level)
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.royalBlueAccent.opacity(0.12))
+                                        .frame(width: 40, height: 40)
+                                    Text("\(level == 7 ? "7+" : "\(level)")")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(Color.royalBlueAccent)
                                 }
-                            } header: {
-                                HStack {
-                                    Text("\(levelTitle(level)) — \(words.count) Completed")
-                                        .font(.footnote.weight(.semibold))
-                                        .foregroundColor(Color.darkForeground.opacity(0.7))
-                                    Spacer()
-                                    Button("Reset") {
-                                        levelToReset = level
-                                        showResetAlert = true
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(levelTitle(level))
+                                        .font(.body.weight(.semibold))
+                                        .foregroundColor(Color.darkForeground)
+
+                                    if sCount > 0 {
+                                        Text("\(sCount) \(sCount == 1 ? "session" : "sessions") • \(wCount) \(wCount == 1 ? "word" : "words") practiced")
+                                            .font(.caption)
+                                            .foregroundColor(Color.darkForeground.opacity(0.65))
+                                    } else {
+                                        Text("No sessions completed yet")
+                                            .font(.caption)
+                                            .foregroundColor(Color.darkForeground.opacity(0.45))
                                     }
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundColor(.red)
                                 }
+
+                                Spacer()
                             }
+                            .padding(.vertical, 4)
                         }
+                        .listRowBackground(Color.warmIvoryCard)
                     }
+                } header: {
+                    Text("Select HSK Level")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(Color.darkForeground.opacity(0.6))
                 }
-                .scrollContentBackground(.hidden)
             }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("Practice Progress")
         .navigationBarTitleDisplayMode(.inline)
@@ -112,34 +82,12 @@ struct PracticeProgressView: View {
             for: .navigationBar
         )
         .toolbarColorScheme(.light, for: .navigationBar)
-        .alert("Reset Progress?", isPresented: $showResetAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Reset", role: .destructive) {
-                if let level = levelToReset {
-                    resetLevelProgress(level)
-                }
-            }
-        } message: {
-            if let level = levelToReset {
-                Text("This will clear all completed practice records for \(levelTitle(level)), making words available for practice again.")
-            } else {
-                Text("Clear practice records?")
-            }
-        }
-    }
-
-    private func resetLevelProgress(_ level: Int) {
-        let targets = wordsForLevel(level)
-        for item in targets {
-            modelContext.delete(item)
-        }
-        try? modelContext.save()
     }
 }
 
 #Preview {
     NavigationStack {
         PracticeProgressView()
-            .modelContainer(for: PracticedWord.self, inMemory: true)
+            .modelContainer(for: PracticeSessionRecord.self, inMemory: true)
     }
 }

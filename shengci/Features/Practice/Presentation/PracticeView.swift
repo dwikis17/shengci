@@ -3,7 +3,7 @@ import SwiftUI
 
 struct PracticeView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var practicedWords: [PracticedWord]
+    @Query private var sessionRecords: [PracticeSessionRecord]
 
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
     @StateObject private var vocabulary = HomeViewModel()
@@ -12,6 +12,7 @@ struct PracticeView: View {
     @State private var selectedAnswer: String?
     @State private var score = 0
     @State private var missedWords: [WordModel] = []
+    @State private var currentSessionItems: [SessionWordItem] = []
 
     @State private var isPracticing = false
 
@@ -24,7 +25,8 @@ struct PracticeView: View {
     }
 
     private var levelPracticedWordSet: Set<String> {
-        Set(practicedWords.filter { $0.hskLevel == selectedHSKLevel }.map { $0.simplified })
+        let levelSessions = sessionRecords.filter { $0.hskLevel == selectedHSKLevel }
+        return Set(levelSessions.flatMap { $0.items.map { $0.simplified } })
     }
 
     private var availableWordsToPractice: [WordModel] {
@@ -238,6 +240,7 @@ struct PracticeView: View {
     }
 
     private func startSession() {
+        saveSessionRecord()
         let questionSource = availableWordsToPractice
         questions = PracticeQuiz.makeQuestions(
             from: questionSource,
@@ -247,25 +250,30 @@ struct PracticeView: View {
         selectedAnswer = nil
         score = 0
         missedWords = []
+        currentSessionItems = []
         isPracticing = true
     }
 
     private func endSession() {
+        saveSessionRecord()
         isPracticing = false
         questions = []
         currentQuestionIndex = 0
         selectedAnswer = nil
         score = 0
         missedWords = []
+        currentSessionItems = []
     }
 
     private func resetSession() {
+        saveSessionRecord()
         isPracticing = false
         questions = []
         currentQuestionIndex = 0
         selectedAnswer = nil
         score = 0
         missedWords = []
+        currentSessionItems = []
     }
 
     private func answer(_ choice: String, for question: PracticeQuestion) {
@@ -279,44 +287,39 @@ struct PracticeView: View {
             missedWords.append(question.word)
             HapticManager.shared.notification(type: .error)
         }
-        savePracticeProgress(for: question.word, isCorrect: isCorrect)
+
+        let primaryForm = question.word.forms.first
+        let item = SessionWordItem(
+            simplified: question.word.simplified,
+            traditional: primaryForm?.traditional ?? question.word.simplified,
+            pinyin: primaryForm?.transcriptions.pinyin ?? "",
+            meanings: primaryForm?.meanings ?? [],
+            isCorrect: isCorrect,
+            selectedChoice: choice
+        )
+        currentSessionItems.append(item)
     }
 
-    private func savePracticeProgress(for word: WordModel, isCorrect: Bool) {
-        let key = "\(selectedHSKLevel)_\(word.simplified)"
-        let primaryForm = word.forms.first
-        let pinyin = primaryForm?.transcriptions.pinyin ?? ""
-        let traditional = primaryForm?.traditional ?? word.simplified
-        let meanings = primaryForm?.meanings ?? []
-
-        if let existing = practicedWords.first(where: { $0.id == key }) {
-            existing.lastPracticedAt = Date()
-            existing.timesPracticed += 1
-            if isCorrect {
-                existing.correctCount += 1
-            } else {
-                existing.incorrectCount += 1
-            }
-        } else {
-            let record = PracticedWord(
-                simplified: word.simplified,
-                hskLevel: selectedHSKLevel,
-                pinyin: pinyin,
-                traditional: traditional,
-                meanings: meanings,
-                lastPracticedAt: Date(),
-                timesPracticed: 1,
-                correctCount: isCorrect ? 1 : 0,
-                incorrectCount: isCorrect ? 0 : 1
-            )
-            modelContext.insert(record)
-        }
+    private func saveSessionRecord() {
+        guard !currentSessionItems.isEmpty else { return }
+        let record = PracticeSessionRecord(
+            hskLevel: selectedHSKLevel,
+            date: Date(),
+            score: score,
+            totalQuestions: currentSessionItems.count,
+            items: currentSessionItems
+        )
+        modelContext.insert(record)
         try? modelContext.save()
+        currentSessionItems = []
     }
 
     private func nextQuestion() {
         currentQuestionIndex += 1
         selectedAnswer = nil
+        if currentQuestionIndex >= questions.count {
+            saveSessionRecord()
+        }
     }
 }
 

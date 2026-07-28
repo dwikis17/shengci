@@ -14,6 +14,6 @@ struct shengciApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [SavedWord.self, PracticedWord.self])
+        .modelContainer(for: [SavedWord.self, PracticeSessionRecord.self])
     }
 }
