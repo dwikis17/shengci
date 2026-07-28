@@ -143,6 +143,7 @@ struct HomeView: View {
                 }
                 .scrollTargetBehavior(.paging)
                 .scrollPosition(id: $currentWordID)
+                .background(DisableScrollToTop())
                 .ignoresSafeArea()
 
                 // Pinned Header (Fixed on top, not scrollable)
@@ -674,6 +675,37 @@ struct HSKLevelPickerSheet: View {
             .toolbarColorScheme(.light, for: .navigationBar)
         }
     }
+}
+
+private final class DisableScrollToTopView: UIView {
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        disableScrollToTop()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        disableScrollToTop()
+    }
+
+    private func disableScrollToTop() {
+        var current: UIView? = self
+        while let view = current {
+            if let scrollView = view as? UIScrollView {
+                scrollView.scrollsToTop = false
+                break
+            }
+            current = view.superview
+        }
+    }
+}
+
+private struct DisableScrollToTop: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        DisableScrollToTopView()
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
 #Preview {
