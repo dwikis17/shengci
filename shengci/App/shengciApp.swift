@@ -10,6 +10,10 @@ import SwiftData
 
 @main
 struct shengciApp: App {
+    init() {
+        CEDICTStore.shared.preload()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

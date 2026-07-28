@@ -185,6 +185,60 @@ enum CEDICT {
     }
 }
 
+final class CEDICTStore: @unchecked Sendable {
+    static let shared = CEDICTStore()
+    private var loadTask: Task<CEDICTSearchIndex, Error>?
+    private var cachedIndex: CEDICTSearchIndex?
+    private let lock = NSLock()
+
+    private init() {}
+
+    func getIndex() async throws -> CEDICTSearchIndex {
+        lock.lock()
+        if let cachedIndex {
+            lock.unlock()
+            return cachedIndex
+        }
+        if let existingTask = loadTask {
+            lock.unlock()
+            return try await existingTask.value
+        }
+
+        let task = Task.detached(priority: .userInitiated) {
+            guard let url = Bundle.main.url(forResource: "cedict_ts", withExtension: "u8") else {
+                throw NSError(
+                    domain: "CEDICT",
+                    code: 404,
+                    userInfo: [NSLocalizedDescriptionKey: "The bundled CC-CEDICT file could not be found."]
+                )
+            }
+            let entries = try CEDICT.load(from: url)
+            return CEDICTSearchIndex(entries: entries)
+        }
+        loadTask = task
+        lock.unlock()
+
+        do {
+            let index = try await task.value
+            lock.lock()
+            cachedIndex = index
+            lock.unlock()
+            return index
+        } catch {
+            lock.lock()
+            loadTask = nil
+            lock.unlock()
+            throw error
+        }
+    }
+
+    func preload() {
+        Task {
+            _ = try? await getIndex()
+        }
+    }
+}
+
 struct DictionarySearchView: View {
     @State private var query = ""
     @State private var searchIndex: CEDICTSearchIndex?
@@ -245,19 +299,10 @@ struct DictionarySearchView: View {
 
     @MainActor
     private func loadDictionary() async {
-        guard let url = Bundle.main.url(forResource: "cedict_ts", withExtension: "u8") else {
-            loadError = "The bundled CC-CEDICT file could not be found."
-            isLoading = false
-            return
-        }
-
         do {
-            searchIndex = try await Task.detached {
-                let entries = try CEDICT.load(from: url)
-                return CEDICTSearchIndex(entries: entries)
-            }.value
+            searchIndex = try await CEDICTStore.shared.getIndex()
         } catch {
-            loadError = "The bundled CC-CEDICT file could not be read."
+            loadError = error.localizedDescription
         }
         isLoading = false
     }
