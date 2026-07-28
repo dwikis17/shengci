@@ -548,11 +548,19 @@ struct DictionarySearchView: View {
                                 isSearchFocused = !isDrawingHanzi
                             } label: {
                                 Image(systemName: isDrawingHanzi ? "pencil.slash" : "pencil")
-                                    .font(.headline)
-                                    .frame(width: 36, height: 36)
+                                    .font(.subheadline)
+                                    .foregroundColor(isDrawingHanzi ? Color.royalBlueAccent : Color.darkForeground.opacity(0.6))
+                                    .frame(width: 28, height: 28)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(isDrawingHanzi ? Color.royalBlueAccent.opacity(0.12) : Color.warmIvoryCard)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .stroke(isDrawingHanzi ? Color.royalBlueAccent.opacity(0.25) : Color.black.opacity(0.06), lineWidth: 1)
+                                    )
                             }
-                            .buttonStyle(.bordered)
-                            .tint(Color.royalBlueAccent)
+                            .buttonStyle(.plain)
                             .accessibilityLabel(isDrawingHanzi ? "Close Hanzi drawing" : "Draw Hanzi")
                         }
                     }
