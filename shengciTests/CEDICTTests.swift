@@ -85,6 +85,19 @@ struct CEDICTTests {
         #expect(PinyinFormatter.display("nǐ hǎo 110") == "nǐ hǎo 110")
     }
 
+    @Test func handwritingCandidatesKeepOnlyUniqueSingleHanzi() {
+        let candidates = HandwritingCandidateFilter.singleHanzi(
+            from: ["你", "你", "好", "hello", "你好", "A", "学"],
+            limit: 2
+        )
+
+        #expect(candidates == ["你", "好"])
+    }
+
+    @Test func dictionaryScopesDoNotExposeASeparateDrawMode() {
+        #expect(SearchScope.allCases == [.all, .hanzi, .pinyin, .english])
+    }
+
     @Test func concurrentWarmAndPrepareCallsCreateOneTask() async throws {
         let tempDir = makeTempDir()
         defer { try? FileManager.default.removeItem(at: tempDir) }
@@ -202,5 +215,4 @@ struct CEDICTTests {
         #expect(result.entries.count == 1)
     }
 }
-
 

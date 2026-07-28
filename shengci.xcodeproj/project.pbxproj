@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3EA6695D04F5039F64A76CB2 /* Pods_shengciTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63C4EFF5A695C9025325E7B3 /* Pods_shengciTests.framework */; };
+		F1ED8698E79EC188252724D4 /* Pods_shengci.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08D987C70BECA340AE7CEFB3 /* Pods_shengci.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		645904BD301794960042C61E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,24 +29,36 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		08D987C70BECA340AE7CEFB3 /* Pods_shengci.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_shengci.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		28BD50D49BE56BF86E0E8A7F /* Pods-shengciTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-shengciTests.debug.xcconfig"; path = "Target Support Files/Pods-shengciTests/Pods-shengciTests.debug.xcconfig"; sourceTree = "<group>"; };
+		43538B6B5E0E2B264598057A /* Pods-shengci.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-shengci.debug.xcconfig"; path = "Target Support Files/Pods-shengci/Pods-shengci.debug.xcconfig"; sourceTree = "<group>"; };
+		63C4EFF5A695C9025325E7B3 /* Pods_shengciTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_shengciTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		645904AD301794950042C61E /* shengci.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = shengci.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		645904BC301794960042C61E /* shengciTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = shengciTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		645904C6301794960042C61E /* shengciUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = shengciUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9C134351E82D557A2714836C /* Pods-shengci.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-shengci.release.xcconfig"; path = "Target Support Files/Pods-shengci/Pods-shengci.release.xcconfig"; sourceTree = "<group>"; };
+		B5F61A1B6738E996E75A84C8 /* Pods-shengciTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-shengciTests.release.xcconfig"; path = "Target Support Files/Pods-shengciTests/Pods-shengciTests.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		645904AF301794950042C61E /* shengci */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = shengci;
 			sourceTree = "<group>";
 		};
 		645904BF301794960042C61E /* shengciTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = shengciTests;
 			sourceTree = "<group>";
 		};
 		645904C9301794960042C61E /* shengciUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = shengciUITests;
 			sourceTree = "<group>";
 		};
@@ -52,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F1ED8698E79EC188252724D4 /* Pods_shengci.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,6 +77,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3EA6695D04F5039F64A76CB2 /* Pods_shengciTests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,6 +91,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		48A4A0D4B78FBC87DFF45BE9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				08D987C70BECA340AE7CEFB3 /* Pods_shengci.framework */,
+				63C4EFF5A695C9025325E7B3 /* Pods_shengciTests.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		645904A4301794950042C61E = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +107,8 @@
 				645904BF301794960042C61E /* shengciTests */,
 				645904C9301794960042C61E /* shengciUITests */,
 				645904AE301794950042C61E /* Products */,
+				733B4594D0AA3FE6765FB134 /* Pods */,
+				48A4A0D4B78FBC87DFF45BE9 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -92,6 +122,18 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		733B4594D0AA3FE6765FB134 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				43538B6B5E0E2B264598057A /* Pods-shengci.debug.xcconfig */,
+				9C134351E82D557A2714836C /* Pods-shengci.release.xcconfig */,
+				28BD50D49BE56BF86E0E8A7F /* Pods-shengciTests.debug.xcconfig */,
+				B5F61A1B6738E996E75A84C8 /* Pods-shengciTests.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -99,9 +141,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 645904D0301794960042C61E /* Build configuration list for PBXNativeTarget "shengci" */;
 			buildPhases = (
+				461339ACABFC367AB8824476 /* [CP] Check Pods Manifest.lock */,
 				645904A9301794950042C61E /* Sources */,
 				645904AA301794950042C61E /* Frameworks */,
 				645904AB301794950042C61E /* Resources */,
+				433745143E788269305D490F /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -111,8 +155,6 @@
 				645904AF301794950042C61E /* shengci */,
 			);
 			name = shengci;
-			packageProductDependencies = (
-			);
 			productName = shengci;
 			productReference = 645904AD301794950042C61E /* shengci.app */;
 			productType = "com.apple.product-type.application";
@@ -121,9 +163,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 645904D3301794960042C61E /* Build configuration list for PBXNativeTarget "shengciTests" */;
 			buildPhases = (
+				959FEC89C32F4188413E9304 /* [CP] Check Pods Manifest.lock */,
 				645904B8301794960042C61E /* Sources */,
 				645904B9301794960042C61E /* Frameworks */,
 				645904BA301794960042C61E /* Resources */,
+				512D8D129A544CC216996F58 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -134,8 +178,6 @@
 				645904BF301794960042C61E /* shengciTests */,
 			);
 			name = shengciTests;
-			packageProductDependencies = (
-			);
 			productName = shengciTests;
 			productReference = 645904BC301794960042C61E /* shengciTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -157,8 +199,6 @@
 				645904C9301794960042C61E /* shengciUITests */,
 			);
 			name = shengciUITests;
-			packageProductDependencies = (
-			);
 			productName = shengciUITests;
 			productReference = 645904C6301794960042C61E /* shengciUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -230,6 +270,87 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		433745143E788269305D490F /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-shengci/Pods-shengci-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-shengci/Pods-shengci-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-shengci/Pods-shengci-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		461339ACABFC367AB8824476 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-shengci-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		512D8D129A544CC216996F58 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-shengciTests/Pods-shengciTests-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-shengciTests/Pods-shengciTests-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-shengciTests/Pods-shengciTests-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		959FEC89C32F4188413E9304 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-shengciTests-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		645904A9301794950042C61E /* Sources */ = {
@@ -392,6 +513,7 @@
 		};
 		645904D1301794960042C61E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 43538B6B5E0E2B264598057A /* Pods-shengci.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -399,6 +521,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6YQB49MLC8;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -425,6 +548,7 @@
 		};
 		645904D2301794960042C61E /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9C134351E82D557A2714836C /* Pods-shengci.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -432,6 +556,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6YQB49MLC8;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -458,11 +583,13 @@
 		};
 		645904D4301794960042C61E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 28BD50D49BE56BF86E0E8A7F /* Pods-shengciTests.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6YQB49MLC8;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
@@ -480,11 +607,13 @@
 		};
 		645904D5301794960042C61E /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B5F61A1B6738E996E75A84C8 /* Pods-shengciTests.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6YQB49MLC8;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;

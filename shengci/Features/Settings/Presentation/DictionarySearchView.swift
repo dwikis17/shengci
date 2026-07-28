@@ -64,7 +64,6 @@ private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.sel
 enum SearchScope: String, CaseIterable, Identifiable, Sendable {
     case all = "All"
     case hanzi = "Hanzi"
-    case draw = "Draw"
     case pinyin = "Pinyin"
     case english = "English"
 
@@ -214,7 +213,7 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
 
         var matchingIDs = Set<Int>()
 
-        if scope == .all || scope == .hanzi || scope == .draw {
+        if scope == .all || scope == .hanzi {
             // 1. Simplified & Traditional Chinese substring
             addMatchingIDs(
                 sql: "SELECT id FROM entries WHERE simplified LIKE ? OR traditional LIKE ?;",
@@ -509,9 +508,11 @@ actor CEDICTStore {
 struct DictionarySearchView: View {
     @State private var query = ""
     @State private var searchScope: SearchScope = .all
+    @State private var isDrawingHanzi = false
     @State private var results = CEDICTSearchResult.empty
     @State private var isLoading = true
     @State private var loadError: String?
+    @FocusState private var isSearchFocused: Bool
 
     init() {
         let appearance = UISegmentedControl.appearance()
@@ -533,18 +534,34 @@ struct DictionarySearchView: View {
 
             VStack(spacing: 0) {
                 if !isLoading && loadError == nil {
-                    Picker("Search Scope", selection: $searchScope) {
-                        ForEach(SearchScope.allCases) { scope in
-                            Text(scope.rawValue).tag(scope)
+                    HStack(spacing: 8) {
+                        Picker("Search Scope", selection: $searchScope) {
+                            ForEach(SearchScope.allCases) { scope in
+                                Text(scope.rawValue).tag(scope)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        if searchScope == .hanzi {
+                            Button {
+                                isDrawingHanzi.toggle()
+                                isSearchFocused = !isDrawingHanzi
+                            } label: {
+                                Image(systemName: isDrawingHanzi ? "pencil.slash" : "pencil")
+                                    .font(.headline)
+                                    .frame(width: 36, height: 36)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(Color.royalBlueAccent)
+                            .accessibilityLabel(isDrawingHanzi ? "Close Hanzi drawing" : "Draw Hanzi")
                         }
                     }
-                    .pickerStyle(.segmented)
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
                     .padding(.bottom, 6)
                     .onChange(of: searchScope) { newScope in
-                        if newScope == .draw {
-                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        if newScope != .hanzi {
+                            isDrawingHanzi = false
                         }
                     }
                 }
@@ -655,18 +672,11 @@ struct DictionarySearchView: View {
                     }
                 }
 
-                if searchScope == .draw {
+                if isDrawingHanzi && searchScope == .hanzi {
                     HandwritingCanvasView(
+                        recognizer: ChineseHandwritingRecognizer.shared,
                         onSelectCandidate: { candidate in
                             query += candidate
-                        },
-                        onClearQuery: {
-                            query = ""
-                        },
-                        onBackspace: {
-                            if !query.isEmpty {
-                                query.removeLast()
-                            }
                         }
                     )
                 }
@@ -685,6 +695,7 @@ struct DictionarySearchView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: "Search Chinese, pinyin, or English"
         )
+        .focused($isSearchFocused)
         .task { await loadDictionary() }
         .task(id: "\(query)_\(searchScope.rawValue)") { await searchDictionary() }
     }
@@ -710,8 +721,8 @@ struct DictionarySearchView: View {
         }
 
         let searchResults = await CEDICTStore.shared.search(query: trimmedQuery, scope: searchScope)
-        results = searchResults
         guard !Task.isCancelled else { return }
+        results = searchResults
     }
 }
 

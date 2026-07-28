@@ -1,3 +1,5 @@
 complete-hsk-vocabulary
 .derivedData/
 DerivedData/
+Pods/
+build/
