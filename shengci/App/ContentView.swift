@@ -256,6 +256,15 @@ struct PlaceholderTabView: View {
 struct WordOfTheDayDetailSheet: View {
     let word: WordOfTheDay
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query private var savedWords: [SavedWord]
+
+    @State private var isSpeaking: Bool = false
+    @State private var copied: Bool = false
+
+    private var isBookmarked: Bool {
+        savedWords.contains(where: { $0.simplified == word.simplified })
+    }
 
     var body: some View {
         NavigationStack {
@@ -294,7 +303,7 @@ struct WordOfTheDayDetailSheet: View {
                             .font(.system(size: 80, weight: .bold, design: .serif))
                             .foregroundColor(Color.darkForeground)
                             .onTapGesture {
-                                SpeechSynthesizerManager.shared.speak(word.simplified)
+                                playAudio()
                             }
 
                         HStack(spacing: 12) {
@@ -312,7 +321,7 @@ struct WordOfTheDayDetailSheet: View {
                         }
                     }
 
-                    // Card Container for Meanings & Parts of Speech
+                    // Card Container for Meanings, Metadata & Action Icons
                     VStack(alignment: .leading, spacing: 16) {
                         if !word.pos.isEmpty {
                             HStack {
@@ -344,6 +353,61 @@ struct WordOfTheDayDetailSheet: View {
                                 }
                             }
                         }
+
+                        // Divider line
+                        Rectangle()
+                            .fill(Color.black.opacity(0.06))
+                            .frame(height: 1)
+                            .padding(.vertical, 2)
+
+                        // Icon-only Action Bar (Matching Learning View)
+                        HStack {
+                            Spacer()
+
+                            // Audio Icon Button
+                            Button {
+                                playAudio()
+                            } label: {
+                                Image(systemName: isSpeaking ? "speaker.wave.3.fill" : "speaker.wave.2.fill")
+                                    .font(.subheadline)
+                                    .foregroundColor(isSpeaking ? Color.royalBlueAccent : Color.darkForeground)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                            }
+
+                            Spacer()
+
+                            // Bookmark / Save Icon Button
+                            Button {
+                                toggleSave()
+                            } label: {
+                                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                                    .font(.subheadline)
+                                    .foregroundColor(isBookmarked ? Color.roseAccent : Color.darkForeground)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                            }
+
+                            Spacer()
+
+                            // Copy Icon Button
+                            Button {
+                                UIPasteboard.general.string = word.simplified
+                                HapticManager.shared.notification(type: .success)
+                                copied = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                    copied = false
+                                }
+                            } label: {
+                                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                                    .font(.subheadline)
+                                    .foregroundColor(copied ? Color.tealAccent : Color.darkForeground)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                            }
+
+                            Spacer()
+                        }
                     }
                     .padding(20)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -367,6 +431,32 @@ struct WordOfTheDayDetailSheet: View {
                     .foregroundColor(Color.royalBlueAccent)
                 }
             }
+        }
+    }
+
+    private func playAudio() {
+        isSpeaking = true
+        HapticManager.shared.impact(style: .light)
+        SpeechSynthesizerManager.shared.speak(word.simplified)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            isSpeaking = false
+        }
+    }
+
+    private func toggleSave() {
+        HapticManager.shared.impact(style: .medium)
+        if let existing = savedWords.first(where: { $0.simplified == word.simplified }) {
+            modelContext.delete(existing)
+        } else {
+            let saved = SavedWord(
+                simplified: word.simplified,
+                pinyin: word.pinyin,
+                traditional: word.traditional,
+                meanings: word.meanings,
+                radical: word.radical,
+                pos: word.pos
+            )
+            modelContext.insert(saved)
         }
     }
 }
