@@ -223,11 +223,13 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         }
 
         if scope == .all || scope == .pinyin {
-            // 2. Pinyin normalized substring
+            // 2. Pinyin normalized & space-insensitive compact substring matching
             if !pinyinQuery.isEmpty {
+                let compactPinyinQuery = pinyinQuery.filter { !$0.isWhitespace }
+                let compactPinyinPattern = "%\(compactPinyinQuery)%"
                 addMatchingIDs(
-                    sql: "SELECT id FROM entries WHERE pinyin_normalized LIKE ?;",
-                    patterns: [pinyinLikePattern],
+                    sql: "SELECT id FROM entries WHERE pinyin_normalized LIKE ? OR REPLACE(pinyin_normalized, ' ', '') LIKE ?;",
+                    patterns: [pinyinLikePattern, compactPinyinPattern],
                     into: &matchingIDs
                 )
             }
