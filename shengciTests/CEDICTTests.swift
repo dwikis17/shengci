@@ -1,5 +1,24 @@
+import Foundation
 import Testing
 @testable import shengci
+
+private final class LoaderCounter: @unchecked Sendable {
+    private var count = 0
+    private let lock = NSLock()
+
+    func increment() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+        return count
+    }
+
+    var value: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+}
 
 struct CEDICTTests {
     private let entries = [
@@ -37,4 +56,61 @@ struct CEDICTTests {
         #expect(PinyinFormatter.display("Zhong1 Guo2") == "Zhōng Guó")
         #expect(PinyinFormatter.display("nǐ hǎo 110") == "nǐ hǎo 110")
     }
+
+    @Test func concurrentWarmAndIndexCallsCreateOneTask() async throws {
+        let counter = LoaderCounter()
+        let sampleEntries = entries
+        let store = CEDICTStore(loader: {
+            _ = counter.increment()
+            try await Task.sleep(nanoseconds: 50_000_000)
+            return CEDICTSearchIndex(entries: sampleEntries)
+        })
+
+        async let warmCall: () = store.warm()
+        async let indexCall: CEDICTSearchIndex = store.index()
+
+        _ = await warmCall
+        let index = try await indexCall
+
+        #expect(counter.value == 1)
+        #expect(index.search("你好").entries.count == 1)
+    }
+
+    @Test func completedWarmUpReturnsCachedIndexWithoutReloading() async throws {
+        let counter = LoaderCounter()
+        let sampleEntries = entries
+        let store = CEDICTStore(loader: {
+            _ = counter.increment()
+            return CEDICTSearchIndex(entries: sampleEntries)
+        })
+
+        await store.warm()
+        let firstResult = try await store.index()
+        let secondResult = try await store.index()
+
+        #expect(counter.value == 1)
+        #expect(firstResult.search("你好").entries.count == 1)
+        #expect(secondResult.search("你好").entries.count == 1)
+    }
+
+    @Test func failedLoadClearsInFlightStateAndAllowsRetry() async throws {
+        let counter = LoaderCounter()
+        let sampleEntries = entries
+        let store = CEDICTStore(loader: {
+            let current = counter.increment()
+            if current == 1 {
+                throw NSError(domain: "TestError", code: 1, userInfo: nil)
+            }
+            return CEDICTSearchIndex(entries: sampleEntries)
+        })
+
+        await #expect(throws: Error.self) {
+            try await store.index()
+        }
+
+        let retriedIndex = try await store.index()
+        #expect(counter.value == 2)
+        #expect(retriedIndex.search("你好").entries.count == 1)
+    }
 }
+

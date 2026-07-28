@@ -187,57 +187,77 @@ enum CEDICT {
     }
 }
 
-final class CEDICTStore: @unchecked Sendable {
+actor CEDICTStore {
     static let shared = CEDICTStore()
     private var loadTask: Task<CEDICTSearchIndex, Error>?
     private var cachedIndex: CEDICTSearchIndex?
-    private let lock = NSLock()
+    private let loader: @Sendable () async throws -> CEDICTSearchIndex
 
-    private init() {}
-
-    func getIndex() async throws -> CEDICTSearchIndex {
-        lock.lock()
-        if let cachedIndex {
-            lock.unlock()
-            return cachedIndex
-        }
-        if let existingTask = loadTask {
-            lock.unlock()
-            return try await existingTask.value
-        }
-
-        let task = Task.detached(priority: .userInitiated) {
-            guard let url = Bundle.main.url(forResource: "cedict_ts", withExtension: "u8") else {
-                throw NSError(
-                    domain: "CEDICT",
-                    code: 404,
-                    userInfo: [NSLocalizedDescriptionKey: "The bundled CC-CEDICT file could not be found."]
-                )
-            }
-            let entries = try CEDICT.load(from: url)
-            return CEDICTSearchIndex(entries: entries)
-        }
-        loadTask = task
-        lock.unlock()
-
-        do {
-            let index = try await task.value
-            lock.lock()
-            cachedIndex = index
-            lock.unlock()
-            return index
-        } catch {
-            lock.lock()
-            loadTask = nil
-            lock.unlock()
-            throw error
-        }
+    init(loader: @escaping @Sendable () async throws -> CEDICTSearchIndex) {
+        self.loader = loader
     }
 
-    func preload() {
-        Task {
-            _ = try? await getIndex()
+    init() {
+        self.init(loader: CEDICTStore.defaultLoader)
+    }
+
+    private static func defaultLoader() async throws -> CEDICTSearchIndex {
+        guard let url = Bundle.main.url(forResource: "cedict_ts", withExtension: "u8") else {
+            throw NSError(
+                domain: "CEDICT",
+                code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "The bundled CC-CEDICT file could not be found."]
+            )
         }
+        let entries = try CEDICT.load(from: url)
+        return CEDICTSearchIndex(entries: entries)
+    }
+
+    func warm() {
+        _ = fetchOrStartTask(priority: .utility)
+    }
+
+    func index() async throws -> CEDICTSearchIndex {
+        if let cachedIndex {
+            return cachedIndex
+        }
+        let task = fetchOrStartTask(priority: .userInitiated)
+        return try await task.value
+    }
+
+    private func fetchOrStartTask(priority: TaskPriority) -> Task<CEDICTSearchIndex, Error> {
+        if let cachedIndex {
+            return Task { cachedIndex }
+        }
+        if let existingTask = loadTask {
+            return existingTask
+        }
+
+        let loader = self.loader
+        let task = Task.detached(priority: priority) {
+            try await loader()
+        }
+        loadTask = task
+
+        Task { [weak self] in
+            do {
+                let result = try await task.value
+                await self?.didComplete(result: result)
+            } catch {
+                await self?.didFail()
+            }
+        }
+
+        return task
+    }
+
+    private func didComplete(result: CEDICTSearchIndex) {
+        cachedIndex = result
+        loadTask = nil
+    }
+
+    private func didFail() {
+        loadTask = nil
     }
 }
 
@@ -271,6 +291,21 @@ struct DictionarySearchView: View {
                         .foregroundColor(Color.darkForeground.opacity(0.9))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
+
+                    Button {
+                        Task { await loadDictionary() }
+                    } label: {
+                        Text("Retry")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.royalBlueAccent)
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
             } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 VStack(spacing: 16) {
@@ -360,8 +395,10 @@ struct DictionarySearchView: View {
 
     @MainActor
     private func loadDictionary() async {
+        isLoading = true
+        loadError = nil
         do {
-            searchIndex = try await CEDICTStore.shared.getIndex()
+            searchIndex = try await CEDICTStore.shared.index()
         } catch {
             loadError = error.localizedDescription
         }

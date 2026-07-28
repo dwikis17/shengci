@@ -48,42 +48,47 @@ struct ContentView: View {
     }
 
     var body: some View {
-        if #available(iOS 18.0, *) {
-            TabView(selection: $selectedTab) {
-                Tab("Learn", systemImage: "play.rectangle.fill", value: AppTab.home) {
+        Group {
+            if #available(iOS 18.0, *) {
+                TabView(selection: $selectedTab) {
+                    Tab("Learn", systemImage: "play.rectangle.fill", value: AppTab.home) {
+                        HomeView()
+                    }
+
+                    Tab("Practice", systemImage: "brain.head.profile", value: AppTab.practice) {
+                        PracticeView()
+                    }
+
+                    Tab("Settings", systemImage: "gearshape.fill", value: AppTab.settings, role: .search) {
+                        SettingsView()
+                    }
+                }
+                .tint(Color.royalBlueAccent)
+            } else {
+                TabView(selection: $selectedTab) {
                     HomeView()
-                }
+                        .tabItem {
+                            Label("Learn", systemImage: "play.rectangle.fill")
+                        }
+                        .tag(AppTab.home)
 
-                Tab("Practice", systemImage: "brain.head.profile", value: AppTab.practice) {
                     PracticeView()
-                }
+                        .tabItem {
+                            Label("Practice", systemImage: "brain.head.profile")
+                        }
+                        .tag(AppTab.practice)
 
-                Tab("Settings", systemImage: "gearshape.fill", value: AppTab.settings, role: .search) {
                     SettingsView()
+                        .tabItem {
+                            Label("Settings", systemImage: "gearshape.fill")
+                        }
+                        .tag(AppTab.settings)
                 }
+                .tint(Color.royalBlueAccent)
             }
-            .tint(Color.royalBlueAccent)
-        } else {
-            TabView(selection: $selectedTab) {
-                HomeView()
-                    .tabItem {
-                        Label("Learn", systemImage: "play.rectangle.fill")
-                    }
-                    .tag(AppTab.home)
-
-                PracticeView()
-                    .tabItem {
-                        Label("Practice", systemImage: "brain.head.profile")
-                    }
-                    .tag(AppTab.practice)
-
-                SettingsView()
-                    .tabItem {
-                        Label("Settings", systemImage: "gearshape.fill")
-                    }
-                    .tag(AppTab.settings)
-            }
-            .tint(Color.royalBlueAccent)
+        }
+        .task {
+            await CEDICTStore.shared.warm()
         }
     }
 }
