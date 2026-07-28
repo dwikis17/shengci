@@ -67,6 +67,7 @@ struct HomeView: View {
     @State private var displayMode: HomeDisplayMode = .focused
     @State private var isLevelPickerPresented: Bool = false
     @State private var isRestoringProgress: Bool = false
+    @State private var savedWordKeys: Set<String> = []
 
     @Namespace private var homeNamespace
 
@@ -136,27 +137,24 @@ struct HomeView: View {
                 Group {
                     if displayMode == .overview {
                         WordOverviewGrid(
-                            wordList: viewModel.wordList,
+                            items: viewModel.overviewItems,
                             currentWordID: $currentWordID,
                             namespace: homeNamespace,
-                            isWordSaved: isWordSaved,
-                            onSelectWord: { selectedWord in
-                                selectWordFromOverview(selectedWord)
-                            }
+                            savedWordKeys: savedWordKeys,
+                            onSelectWord: selectWordFromOverview
                         )
                         .transition(reduceMotion ? .opacity : .identity)
                     } else {
                         // Scrollable Feed
-                        ScrollView(.vertical, showsIndicators: false) {
+                        ScrollView(.vertical) {
                             LazyVStack(spacing: 0) {
-                                ForEach(
-                                    Array(viewModel.wordList.enumerated()),
-                                    id: \.element.id
-                                ) { index, word in
+                                ForEach(viewModel.wordList) { word in
                                     WordCardView(
                                         word: word,
                                         isBookmarked: isWordSaved(word),
                                         namespace: homeNamespace,
+                                        isOverviewTransitionSource:
+                                            word.id == currentWordID,
                                         onToggleBookmark: {
                                             toggleBookmark(for: word)
                                         }
@@ -169,7 +167,7 @@ struct HomeView: View {
                         }
                         .scrollTargetBehavior(.paging)
                         .scrollPosition(id: $currentWordID)
-                        .background(DisableScrollToTop())
+                        .scrollIndicators(.hidden)
                         .ignoresSafeArea()
                         .transition(reduceMotion ? .opacity : .identity)
                     }
@@ -262,6 +260,7 @@ struct HomeView: View {
                 .presentationDragIndicator(.visible)
         }
         .onAppear {
+            updateSavedWordKeys(savedWords.map(\.simplified))
             if viewModel.currentLevel != selectedHSKLevel {
                 displayMode = .focused
                 viewModel.loadWords(level: selectedHSKLevel)
@@ -269,19 +268,22 @@ struct HomeView: View {
                 restoreProgress()
             }
         }
-        .onChange(of: selectedHSKLevel) { newLevel in
+        .onChange(of: selectedHSKLevel) { _, newLevel in
             displayMode = .focused
             viewModel.loadWords(level: newLevel)
         }
-        .onChange(of: viewModel.wordList) { _ in
+        .onChange(of: viewModel.wordList) {
             restoreProgress()
         }
-        .onChange(of: currentWordID) { newID in
+        .onChange(of: currentWordID) { _, newID in
             guard !isRestoringProgress else { return }
             if displayMode == .focused {
                 HapticManager.shared.selection()
             }
             saveProgress(for: newID)
+        }
+        .onChange(of: savedWords.map(\.simplified)) { _, newKeys in
+            updateSavedWordKeys(newKeys)
         }
     }
 
@@ -307,10 +309,10 @@ struct HomeView: View {
         }
     }
 
-    private func selectWordFromOverview(_ word: WordModel) {
+    private func selectWordFromOverview(_ wordID: UUID) {
         HapticManager.shared.selection()
-        currentWordID = word.id
-        saveProgress(for: word.id)
+        currentWordID = wordID
+        saveProgress(for: wordID)
         switchMode(to: .focused)
     }
 
@@ -343,7 +345,11 @@ struct HomeView: View {
     }
 
     private func isWordSaved(_ word: WordModel) -> Bool {
-        savedWords.contains(where: { $0.simplified == word.simplified })
+        savedWordKeys.contains(word.simplified)
+    }
+
+    private func updateSavedWordKeys(_ keys: [String]) {
+        savedWordKeys = Set(keys)
     }
 
     private func toggleBookmark(for word: WordModel) {
@@ -359,156 +365,12 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Word Overview Grid Component
-struct WordOverviewGrid: View {
-    let wordList: [WordModel]
-    @Binding var currentWordID: UUID?
-    let namespace: Namespace.ID
-    let isWordSaved: (WordModel) -> Bool
-    let onSelectWord: (WordModel) -> Void
-
-    private let columns = [
-        GridItem(.adaptive(minimum: 95, maximum: 125), spacing: 12)
-    ]
-
-    var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: true) {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(wordList) { word in
-                        WordOverviewTile(
-                            word: word,
-                            isSelected: word.id == currentWordID,
-                            isSaved: isWordSaved(word),
-                            namespace: namespace,
-                            onSelect: {
-                                onSelectWord(word)
-                            }
-                        )
-                        .id(word.id)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 56)
-                .padding(.bottom, 40)
-            }
-            .background(DisableScrollToTop())
-            .onAppear {
-                if let currentWordID = currentWordID {
-                    proxy.scrollTo(currentWordID, anchor: .center)
-                }
-            }
-            .onChange(of: currentWordID) { newID in
-                if let newID = newID {
-                    withAnimation {
-                        proxy.scrollTo(newID, anchor: .center)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Word Overview Tile Component
-struct WordOverviewTile: View {
-    let word: WordModel
-    let isSelected: Bool
-    let isSaved: Bool
-    let namespace: Namespace.ID
-    let onSelect: () -> Void
-
-    private var pinyinText: String {
-        if let pinyin = word.forms.first?.transcriptions.pinyin {
-            return PinyinFormatter.display(pinyin)
-        }
-        return ""
-    }
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(spacing: 4) {
-                HStack {
-                    Spacer()
-                    if isSaved {
-                        Image(systemName: "bookmark.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.roseAccent)
-                    }
-                }
-                .frame(height: 10)
-
-                Text(word.simplified)
-                    .font(.system(size: 24, weight: .bold, design: .serif))
-                    .foregroundColor(Color.darkForeground)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    .matchedGeometryEffect(
-                        id: "overview-char-\(word.id)",
-                        in: namespace
-                    )
-
-                if !pinyinText.isEmpty {
-                    Text(pinyinText)
-                        .font(.caption2.weight(.medium))
-                        .foregroundColor(
-                            isSelected
-                                ? Color.royalBlueAccent
-                                : Color.darkForeground.opacity(0.7)
-                        )
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        isSelected
-                            ? Color.royalBlueAccent.opacity(0.12)
-                            : Color.warmIvoryCard
-                    )
-                    .matchedGeometryEffect(
-                        id: "overview-tile-\(word.id)",
-                        in: namespace
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        isSelected
-                            ? Color.royalBlueAccent
-                            : Color.black.opacity(0.06),
-                        lineWidth: isSelected ? 2 : 1
-                    )
-            )
-            .shadow(
-                color: isSelected
-                    ? Color.royalBlueAccent.opacity(0.15)
-                    : Color.black.opacity(0.03),
-                radius: isSelected ? 6 : 3,
-                x: 0,
-                y: 2
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(word.simplified), \(pinyinText)\(isSaved ? ", Bookmarked" : "")"
-        )
-        .accessibilityAddTraits(
-            isSelected ? [.isButton, .isSelected] : [.isButton]
-        )
-        .accessibilityHint("Double tap to jump to this word")
-    }
-}
-
 // MARK: - Word Card View (TikTok 1-word-per-screen layout)
 struct WordCardView: View {
     let word: WordModel
     let isBookmarked: Bool
     let namespace: Namespace.ID
+    let isOverviewTransitionSource: Bool
     let onToggleBookmark: () -> Void
 
     @State private var copiedFeedback: Bool = false
@@ -550,9 +412,10 @@ struct WordCardView: View {
                         )
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
-                        .matchedGeometryEffect(
+                        .homeMatchedGeometryEffect(
                             id: "overview-char-\(word.id)",
-                            in: namespace
+                            in: namespace,
+                            isEnabled: isOverviewTransitionSource
                         )
                         .onTapGesture {
                             playAudio()
@@ -600,7 +463,7 @@ struct WordCardView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     // Part of Speech Badges
                     if !word.pos.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
+                        ScrollView(.horizontal) {
                             HStack(spacing: 8) {
                                 ForEach(word.pos, id: \.self) { posTag in
                                     Text(posTag.uppercased())
@@ -631,7 +494,7 @@ struct WordCardView: View {
                                     .foregroundColor(Color.darkForeground.opacity(0.6))
                             }
                         }
-                        .background(DisableScrollToTop())
+                        .scrollIndicators(.hidden)
                     }
 
                     // Meanings List
@@ -765,9 +628,10 @@ struct WordCardView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 24)
                         .fill(Color.warmIvoryCard)
-                        .matchedGeometryEffect(
+                        .homeMatchedGeometryEffect(
                             id: "overview-tile-\(word.id)",
-                            in: namespace
+                            in: namespace,
+                            isEnabled: isOverviewTransitionSource
                         )
                         .shadow(
                             color: Color.black.opacity(0.05),
@@ -964,53 +828,6 @@ struct HSKLevelPickerSheet: View {
             .toolbarBackground(Color.creamBackground, for: .navigationBar)
             .toolbarColorScheme(.light, for: .navigationBar)
         }
-    }
-}
-
-private final class DisableScrollToTopView: UIView {
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        disableScrollToTop()
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        disableScrollToTop()
-    }
-
-    func disableScrollToTop() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            var current: UIView? = self
-            while let view = current {
-                if let scrollView = view as? UIScrollView {
-                    scrollView.scrollsToTop = false
-                }
-                current = view.superview
-            }
-            if let window = self.window {
-                self.disableAllScrollsToTop(in: window)
-            }
-        }
-    }
-
-    private func disableAllScrollsToTop(in view: UIView) {
-        if let scrollView = view as? UIScrollView {
-            scrollView.scrollsToTop = false
-        }
-        for subview in view.subviews {
-            disableAllScrollsToTop(in: subview)
-        }
-    }
-}
-
-private struct DisableScrollToTop: UIViewRepresentable {
-    func makeUIView(context: Context) -> DisableScrollToTopView {
-        DisableScrollToTopView()
-    }
-
-    func updateUIView(_ uiView: DisableScrollToTopView, context: Context) {
-        uiView.disableScrollToTop()
     }
 }
 

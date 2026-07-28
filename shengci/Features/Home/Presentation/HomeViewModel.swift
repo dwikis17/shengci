@@ -11,6 +11,7 @@ import Foundation
 @MainActor
 final class HomeViewModel: ObservableObject {
     @Published var wordList: [WordModel] = []
+    @Published var overviewItems: [WordOverviewItem] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
     @Published var currentLevel: Int = 1
@@ -46,6 +47,7 @@ final class HomeViewModel: ObservableObject {
 
                 guard self.currentLevel == level else { return }
                 self.wordList = words
+                self.overviewItems = words.map(WordOverviewItem.init)
                 self.isLoading = false
             } catch {
                 guard self.currentLevel == level else { return }
