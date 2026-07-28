@@ -60,6 +60,50 @@ struct SettingsView: View {
                             .foregroundColor(Color.darkForeground.opacity(0.6))
                     }
 
+                    // MARK: - Progress Navigation Section
+                    Section {
+                        NavigationLink {
+                            PracticeProgressView()
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.tealAccent.opacity(0.15))
+                                        .frame(width: 38, height: 38)
+
+                                    Image(systemName: "chart.bar.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(Color.tealAccent)
+                                }
+
+                                VStack(
+                                    alignment: .leading,
+                                    spacing: 2
+                                ) {
+                                    Text("Practice Progress")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundColor(
+                                            Color.darkForeground
+                                        )
+
+                                    Text(
+                                        "View completed words grouped by HSK level"
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(
+                                        Color.darkForeground
+                                            .opacity(0.65)
+                                    )
+                                }
+                            }
+                        }
+                        .listRowBackground(Color.warmIvoryCard)
+                    } header: {
+                        Text("Progress")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
+                    }
+
                     // MARK: - Search Navigation Section
                     Section {
                         NavigationLink {

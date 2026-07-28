@@ -1,6 +1,10 @@
+import SwiftData
 import SwiftUI
 
 struct PracticeView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var practicedWords: [PracticedWord]
+
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
     @StateObject private var vocabulary = HomeViewModel()
     @State private var questions: [PracticeQuestion] = []
@@ -17,6 +21,15 @@ struct PracticeView: View {
 
     private var levelTitle: String {
         "HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)")"
+    }
+
+    private var levelPracticedWordSet: Set<String> {
+        Set(practicedWords.filter { $0.hskLevel == selectedHSKLevel }.map { $0.simplified })
+    }
+
+    private var availableWordsToPractice: [WordModel] {
+        let unpracticed = vocabulary.wordList.filter { !levelPracticedWordSet.contains($0.simplified) }
+        return unpracticed.isEmpty ? vocabulary.wordList : unpracticed
     }
 
     var body: some View {
@@ -71,9 +84,15 @@ struct PracticeView: View {
                 .foregroundColor(Color.royalBlueAccent)
             VStack(spacing: 8) {
                 Text("Recall Practice").font(.title.bold()).foregroundColor(Color.darkForeground)
-                Text("Test your \(levelTitle) vocabulary with 10 quick questions.")
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(Color.darkForeground.opacity(0.65))
+                if !vocabulary.wordList.isEmpty && levelPracticedWordSet.count >= vocabulary.wordList.count {
+                    Text("All \(vocabulary.wordList.count) words in \(levelTitle) completed! Practice again to review.")
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(Color.darkForeground.opacity(0.65))
+                } else {
+                    Text("Test your \(levelTitle) vocabulary (\(levelPracticedWordSet.count)/\(vocabulary.wordList.count) completed).")
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(Color.darkForeground.opacity(0.65))
+                }
             }
             Button(action: startSession) {
                 Label("Start Practice", systemImage: "play.fill")
@@ -219,7 +238,11 @@ struct PracticeView: View {
     }
 
     private func startSession() {
-        questions = PracticeQuiz.makeQuestions(from: vocabulary.wordList)
+        let questionSource = availableWordsToPractice
+        questions = PracticeQuiz.makeQuestions(
+            from: questionSource,
+            distractorPool: vocabulary.wordList
+        )
         currentQuestionIndex = 0
         selectedAnswer = nil
         score = 0
@@ -248,13 +271,47 @@ struct PracticeView: View {
     private func answer(_ choice: String, for question: PracticeQuestion) {
         guard selectedAnswer == nil else { return }
         selectedAnswer = choice
-        if question.isCorrect(choice) {
+        let isCorrect = question.isCorrect(choice)
+        if isCorrect {
             score += 1
             HapticManager.shared.notification(type: .success)
         } else {
             missedWords.append(question.word)
             HapticManager.shared.notification(type: .error)
         }
+        savePracticeProgress(for: question.word, isCorrect: isCorrect)
+    }
+
+    private func savePracticeProgress(for word: WordModel, isCorrect: Bool) {
+        let key = "\(selectedHSKLevel)_\(word.simplified)"
+        let primaryForm = word.forms.first
+        let pinyin = primaryForm?.transcriptions.pinyin ?? ""
+        let traditional = primaryForm?.traditional ?? word.simplified
+        let meanings = primaryForm?.meanings ?? []
+
+        if let existing = practicedWords.first(where: { $0.id == key }) {
+            existing.lastPracticedAt = Date()
+            existing.timesPracticed += 1
+            if isCorrect {
+                existing.correctCount += 1
+            } else {
+                existing.incorrectCount += 1
+            }
+        } else {
+            let record = PracticedWord(
+                simplified: word.simplified,
+                hskLevel: selectedHSKLevel,
+                pinyin: pinyin,
+                traditional: traditional,
+                meanings: meanings,
+                lastPracticedAt: Date(),
+                timesPracticed: 1,
+                correctCount: isCorrect ? 1 : 0,
+                incorrectCount: isCorrect ? 0 : 1
+            )
+            modelContext.insert(record)
+        }
+        try? modelContext.save()
     }
 
     private func nextQuestion() {

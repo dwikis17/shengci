@@ -13,10 +13,15 @@ struct PracticeQuestion: Identifiable {
 }
 
 enum PracticeQuiz {
-    static func makeQuestions(from words: [WordModel], count: Int = 10) -> [PracticeQuestion] {
+    static func makeQuestions(
+        from words: [WordModel],
+        distractorPool: [WordModel] = [],
+        count: Int = 10
+    ) -> [PracticeQuestion] {
         let eligibleWords = uniqueEligibleWords(from: words)
+        let pool = distractorPool.isEmpty ? eligibleWords : uniqueEligibleWords(from: distractorPool)
         return eligibleWords.shuffled().prefix(count).map {
-            PracticeQuestion(word: $0, choices: choices(for: $0, from: eligibleWords))
+            PracticeQuestion(word: $0, choices: choices(for: $0, from: pool))
         }
     }
 

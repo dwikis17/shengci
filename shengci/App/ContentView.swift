@@ -233,5 +233,5 @@ struct PlaceholderTabView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: SavedWord.self, inMemory: true)
+        .modelContainer(for: [SavedWord.self, PracticedWord.self], inMemory: true)
 }
