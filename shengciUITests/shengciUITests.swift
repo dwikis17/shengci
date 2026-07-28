@@ -34,6 +34,19 @@ final class shengciUITests: XCTestCase {
     }
 
     @MainActor
+    func testScanTabNavigation() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let scanTab = app.tabBars.buttons["Scan"]
+        XCTAssertTrue(scanTab.waitForExistence(timeout: 5))
+        scanTab.tap()
+
+        XCTAssertTrue(app.navigationBars["Scan"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Choose Photo"].exists)
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {

@@ -232,8 +232,32 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
 
         var priorityIDs: [Int] = []
         var matchingIDs = Set<Int>()
+        let hanziChars = trimmedQuery.filter(\.isHanzi)
 
         if scope == .all || scope == .hanzi {
+            if hanziChars.count > 1 {
+                var exactIDs = Set<Int>()
+                addMatchingIDs(
+                    sql: """
+                        SELECT id FROM entries
+                        WHERE simplified = ? OR traditional = ?;
+                        """,
+                    patterns: [trimmedQuery, trimmedQuery],
+                    into: &exactIDs
+                )
+
+                if !exactIDs.isEmpty {
+                    let orderedIDs = exactIDs.sorted()
+                    let entries = fetchEntries(
+                        for: Array(orderedIDs.prefix(limit))
+                    )
+                    return CEDICTSearchResult(
+                        entries: entries,
+                        hasMore: exactIDs.count > limit
+                    )
+                }
+            }
+
             // 1a. Full query exact match
             addMatchingIDs(
                 sql: "SELECT id FROM entries WHERE simplified = ? OR traditional = ?;",
@@ -250,7 +274,6 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
             )
 
             // 1c. Breakdown for individual Hanzi characters in query
-            let hanziChars = trimmedQuery.filter { $0.isHanzi }
             if !hanziChars.isEmpty {
                 for char in hanziChars {
                     let charStr = String(char)
@@ -331,6 +354,86 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
         let hasMore = matchingIDs.count > limit
         let finalEntries = Array(rankedEntries.prefix(limit))
         return CEDICTSearchResult(entries: finalEntries, hasMore: hasMore)
+    }
+
+    func exactEntries(for terms: Set<String>) -> [String: [CEDICTEntry]] {
+        guard !terms.isEmpty else { return [:] }
+
+        let sortedTerms = terms.sorted()
+        let chunkSize = 400
+        var groupedEntries = Dictionary(
+            uniqueKeysWithValues: sortedTerms.map { ($0, [CEDICTEntry]()) }
+        )
+
+        for startIndex in stride(
+            from: 0,
+            to: sortedTerms.count,
+            by: chunkSize
+        ) {
+            let endIndex = min(startIndex + chunkSize, sortedTerms.count)
+            let chunk = Array(sortedTerms[startIndex..<endIndex])
+            let placeholders = chunk.map { _ in "?" }.joined(separator: ",")
+            let sql = """
+                SELECT id, traditional, simplified, pinyin, definitions
+                FROM entries
+                WHERE simplified IN (\(placeholders))
+                   OR traditional IN (\(placeholders))
+                ORDER BY id ASC;
+                """
+
+            var statement: OpaquePointer?
+            guard
+                sqlite3_prepare_v2(
+                    db,
+                    sql,
+                    -1,
+                    &statement,
+                    nil
+                ) == SQLITE_OK,
+                let statement
+            else {
+                continue
+            }
+            defer { sqlite3_finalize(statement) }
+
+            for (index, term) in chunk.enumerated() {
+                sqlite3_bind_text(
+                    statement,
+                    Int32(index + 1),
+                    term,
+                    -1,
+                    SQLITE_TRANSIENT
+                )
+                sqlite3_bind_text(
+                    statement,
+                    Int32(index + chunk.count + 1),
+                    term,
+                    -1,
+                    SQLITE_TRANSIENT
+                )
+            }
+
+            let chunkTerms = Set(chunk)
+            let decoder = JSONDecoder()
+
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let entry = databaseEntry(
+                    from: statement,
+                    decoder: decoder
+                )
+
+                if chunkTerms.contains(entry.simplified) {
+                    groupedEntries[entry.simplified, default: []].append(entry)
+                }
+                if entry.traditional != entry.simplified,
+                    chunkTerms.contains(entry.traditional)
+                {
+                    groupedEntries[entry.traditional, default: []].append(entry)
+                }
+            }
+        }
+
+        return groupedEntries
     }
 
     private func addMatchingIDs(sql: String, patterns: [String], into matchingIDs: inout Set<Int>, priorityIDs: inout [Int]) {
@@ -451,13 +554,37 @@ nonisolated final class SQLiteDatabase: @unchecked Sendable {
 
         return results
     }
+
+    private func databaseEntry(
+        from statement: OpaquePointer,
+        decoder: JSONDecoder
+    ) -> CEDICTEntry {
+        let id = Int(sqlite3_column_int64(statement, 0))
+        let traditional = String(cString: sqlite3_column_text(statement, 1))
+        let simplified = String(cString: sqlite3_column_text(statement, 2))
+        let pinyin = String(cString: sqlite3_column_text(statement, 3))
+        let definitionsString = String(
+            cString: sqlite3_column_text(statement, 4)
+        )
+        let definitionsData = definitionsString.data(using: .utf8) ?? Data()
+        let definitions =
+            (try? decoder.decode([String].self, from: definitionsData)) ?? []
+
+        return CEDICTEntry(
+            id: id,
+            traditional: traditional,
+            simplified: simplified,
+            pinyin: pinyin,
+            definitions: definitions
+        )
+    }
 }
 
-actor CEDICTStore {
+actor CEDICTStore: ChineseLexicon {
     static let shared = CEDICTStore()
 
     private var database: SQLiteDatabase?
-    private var buildTask: Task<Void, Error>?
+    private var buildTask: Task<SQLiteDatabase, Error>?
 
     private let databaseDirectory: URL
     private let sourceURL: URL?
@@ -480,16 +607,28 @@ actor CEDICTStore {
         self.loader = loader
     }
 
-    func warm() {
-        _ = fetchOrStartBuildTask(priority: .utility)
+    func warm() async {
+        try? await prepare(priority: .utility)
     }
 
     func prepare() async throws {
+        try await prepare(priority: .userInitiated)
+    }
+
+    private func prepare(priority: TaskPriority) async throws {
         if database != nil {
             return
         }
-        let task = fetchOrStartBuildTask(priority: .userInitiated)
-        try await task.value
+        let task = fetchOrStartBuildTask(priority: priority)
+
+        do {
+            database = try await task.value
+            buildTask = nil
+        } catch {
+            database = nil
+            buildTask = nil
+            throw error
+        }
     }
 
     func search(query: String, scope: SearchScope = .all, limit: Int = 100) async -> CEDICTSearchResult {
@@ -504,10 +643,23 @@ actor CEDICTStore {
         return database.search(query: query, scope: scope, limit: limit)
     }
 
-    private func fetchOrStartBuildTask(priority: TaskPriority) -> Task<Void, Error> {
-        if database != nil {
-            return Task {}
+    func exactEntries(
+        for terms: Set<String>
+    ) async -> [String: [CEDICTEntry]] {
+        if database == nil {
+            do {
+                try await prepare()
+            } catch {
+                return [:]
+            }
         }
+        guard let database else { return [:] }
+        return database.exactEntries(for: terms)
+    }
+
+    private func fetchOrStartBuildTask(
+        priority: TaskPriority
+    ) -> Task<SQLiteDatabase, Error> {
         if let existingTask = buildTask {
             return existingTask
         }
@@ -526,36 +678,23 @@ actor CEDICTStore {
                 buildVersion: buildVersion,
                 loader: loader
             )
+
+            let databaseURL = databaseDirectory.appendingPathComponent(
+                CEDICTStore.cacheFileName(
+                    schemaVersion: schemaVersion,
+                    buildVersion: buildVersion
+                )
+            )
+            return try SQLiteDatabase(
+                path: databaseURL.path,
+                readOnly: true
+            )
         }
         buildTask = task
-
-        Task { [weak self] in
-            do {
-                try await task.value
-                let dbPath = databaseDirectory.appendingPathComponent(
-                    CEDICTStore.cacheFileName(schemaVersion: schemaVersion, buildVersion: buildVersion)
-                ).path
-                let db = try SQLiteDatabase(path: dbPath, readOnly: true)
-                await self?.didComplete(database: db)
-            } catch {
-                await self?.didFail()
-            }
-        }
-
         return task
     }
 
-    private func didComplete(database: SQLiteDatabase) {
-        self.database = database
-        self.buildTask = nil
-    }
-
-    private func didFail() {
-        self.database = nil
-        self.buildTask = nil
-    }
-
-    private static func cacheFileName(schemaVersion: Int, buildVersion: String) -> String {
+    private nonisolated static func cacheFileName(schemaVersion: Int, buildVersion: String) -> String {
         "dictionary-v\(schemaVersion)-\(buildVersion).sqlite"
     }
 

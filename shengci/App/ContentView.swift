@@ -14,6 +14,7 @@ struct ContentView: View {
 
     enum AppTab: Hashable {
         case home
+        case scan
         case practice
         case settings
     }
@@ -45,6 +46,10 @@ struct ContentView: View {
                         HomeView()
                     }
 
+                    Tab("Scan", systemImage: "viewfinder", value: AppTab.scan) {
+                        ScanView()
+                    }
+
                     Tab("Practice", systemImage: "brain.head.profile", value: AppTab.practice) {
                         PracticeView()
                     }
@@ -61,6 +66,12 @@ struct ContentView: View {
                             Label("Learn", systemImage: "play.rectangle.fill")
                         }
                         .tag(AppTab.home)
+
+                    ScanView()
+                        .tabItem {
+                            Label("Scan", systemImage: "viewfinder")
+                        }
+                        .tag(AppTab.scan)
 
                     PracticeView()
                         .tabItem {
@@ -454,4 +465,3 @@ struct WordOfTheDayDetailSheet: View {
     ContentView()
         .modelContainer(for: [SavedWord.self, PracticeSessionRecord.self], inMemory: true)
 }
-
