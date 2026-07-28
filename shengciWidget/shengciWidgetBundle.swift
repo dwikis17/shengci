@@ -2,7 +2,7 @@
 //  shengciWidgetBundle.swift
 //  shengciWidget
 //
-//  Created by SM on 28/07/26.
+//  Created by Dwiki on 28/07/26.
 //
 
 import WidgetKit
@@ -12,7 +12,5 @@ import SwiftUI
 struct shengciWidgetBundle: WidgetBundle {
     var body: some Widget {
         shengciWidget()
-        shengciWidgetControl()
-        shengciWidgetLiveActivity()
     }
 }
