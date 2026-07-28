@@ -256,14 +256,6 @@ struct PlaceholderTabView: View {
 struct WordOfTheDayDetailSheet: View {
     let word: WordOfTheDay
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Query private var savedWords: [SavedWord]
-    @State private var isSpeaking: Bool = false
-    @State private var copied: Bool = false
-
-    private var isBookmarked: Bool {
-        savedWords.contains(where: { $0.simplified == word.simplified })
-    }
 
     var body: some View {
         NavigationStack {
@@ -302,7 +294,7 @@ struct WordOfTheDayDetailSheet: View {
                             .font(.system(size: 80, weight: .bold, design: .serif))
                             .foregroundColor(Color.darkForeground)
                             .onTapGesture {
-                                playAudio()
+                                SpeechSynthesizerManager.shared.speak(word.simplified)
                             }
 
                         HStack(spacing: 12) {
@@ -320,7 +312,7 @@ struct WordOfTheDayDetailSheet: View {
                         }
                     }
 
-                    // Card Container for Meanings & Actions
+                    // Card Container for Meanings & Parts of Speech
                     VStack(alignment: .leading, spacing: 16) {
                         if !word.pos.isEmpty {
                             HStack {
@@ -352,46 +344,9 @@ struct WordOfTheDayDetailSheet: View {
                                 }
                             }
                         }
-
-                        Divider()
-                            .padding(.vertical, 4)
-
-                        HStack {
-                            Button {
-                                playAudio()
-                            } label: {
-                                Label(isSpeaking ? "Speaking..." : "Pronounce", systemImage: isSpeaking ? "speaker.wave.3.fill" : "speaker.wave.2.fill")
-                                    .font(.subheadline.bold())
-                                    .foregroundColor(Color.royalBlueAccent)
-                            }
-
-                            Spacer()
-
-                            Button {
-                                toggleSave()
-                            } label: {
-                                Label(isBookmarked ? "Saved" : "Save", systemImage: isBookmarked ? "bookmark.fill" : "bookmark")
-                                    .font(.subheadline.bold())
-                                    .foregroundColor(isBookmarked ? Color.roseAccent : Color.darkForeground)
-                            }
-
-                            Spacer()
-
-                            Button {
-                                UIPasteboard.general.string = word.simplified
-                                HapticManager.shared.notification(type: .success)
-                                copied = true
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                                    copied = false
-                                }
-                            } label: {
-                                Label(copied ? "Copied!" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
-                                    .font(.subheadline.bold())
-                                    .foregroundColor(copied ? Color.tealAccent : Color.darkForeground)
-                            }
-                        }
                     }
                     .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 20)
                             .fill(Color.warmIvoryCard)
@@ -412,32 +367,6 @@ struct WordOfTheDayDetailSheet: View {
                     .foregroundColor(Color.royalBlueAccent)
                 }
             }
-        }
-    }
-
-    private func playAudio() {
-        isSpeaking = true
-        HapticManager.shared.impact(style: .light)
-        SpeechSynthesizerManager.shared.speak(word.simplified)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            isSpeaking = false
-        }
-    }
-
-    private func toggleSave() {
-        HapticManager.shared.impact(style: .medium)
-        if let existing = savedWords.first(where: { $0.simplified == word.simplified }) {
-            modelContext.delete(existing)
-        } else {
-            let saved = SavedWord(
-                simplified: word.simplified,
-                pinyin: word.pinyin,
-                traditional: word.traditional,
-                meanings: word.meanings,
-                radical: word.radical,
-                pos: word.pos
-            )
-            modelContext.insert(saved)
         }
     }
 }
