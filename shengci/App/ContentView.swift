@@ -19,17 +19,32 @@ struct ContentView: View {
     }
 
     init() {
-        let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithOpaqueBackground()
+        tabBarAppearance.backgroundColor = UIColor(
             red: 0.97,
             green: 0.95,
             blue: 0.92,
             alpha: 0.95
         )
 
-        UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+
+        let navBarAppearance = UINavigationBarAppearance()
+        navBarAppearance.configureWithOpaqueBackground()
+        navBarAppearance.backgroundColor = UIColor(
+            red: 0.97,
+            green: 0.95,
+            blue: 0.92,
+            alpha: 0.95
+        )
+        navBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.black]
+        navBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.black]
+
+        UINavigationBar.appearance().standardAppearance = navBarAppearance
+        UINavigationBar.appearance().compactAppearance = navBarAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
     }
 
     var body: some View {
@@ -171,6 +186,7 @@ struct SavedWordsView: View {
             for: .navigationBar
         )
         .toolbarColorScheme(.light, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private func deleteSavedWords(offsets: IndexSet) {

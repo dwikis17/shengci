@@ -37,6 +37,11 @@ struct PracticeView: View {
             }
             .navigationTitle("Practice")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(
+                Color.creamBackground,
+                for: .navigationBar
+            )
+            .toolbarColorScheme(.light, for: .navigationBar)
         }
         .onAppear(perform: loadSelectedLevel)
         .onChange(of: selectedHSKLevel) { _ in

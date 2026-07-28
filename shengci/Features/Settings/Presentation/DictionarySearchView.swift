@@ -232,6 +232,12 @@ struct DictionarySearchView: View {
         }
         .navigationTitle("Dictionary")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(
+            Color.creamBackground,
+            for: .navigationBar
+        )
+        .toolbarColorScheme(.light, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .searchable(text: $query, prompt: "Chinese, pinyin, or English")
         .task { await loadDictionary() }
         .task(id: query) { await searchDictionary() }
