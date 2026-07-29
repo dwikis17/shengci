@@ -66,8 +66,10 @@ public struct WordOfTheDayWidgetEntryView: View {
 
     public var body: some View {
         ZStack {
-            Color(red: 0.97, green: 0.95, blue: 0.92) // Cream background
-                .ignoresSafeArea()
+            if family != .accessoryRectangular && family != .accessoryInline {
+                Color(red: 0.97, green: 0.95, blue: 0.92) // Cream background for home screen widgets
+                    .ignoresSafeArea()
+            }
 
             switch family {
             case .systemSmall:
@@ -300,6 +302,18 @@ public struct WordOfTheDayWidgetEntryView: View {
     }
 }
 
+struct CustomWidgetBackgroundView: View {
+    @Environment(\.widgetFamily) var family
+
+    var body: some View {
+        if family == .accessoryRectangular || family == .accessoryInline {
+            Color.clear
+        } else {
+            Color(red: 0.97, green: 0.95, blue: 0.92)
+        }
+    }
+}
+
 public struct shengciWidget: Widget {
     let kind: String = "shengciWidget"
 
@@ -309,7 +323,9 @@ public struct shengciWidget: Widget {
         StaticConfiguration(kind: kind, provider: WordOfTheDayProvider()) { entry in
             if #available(iOS 17.0, *) {
                 WordOfTheDayWidgetEntryView(entry: entry)
-                    .containerBackground(Color(red: 0.97, green: 0.95, blue: 0.92), for: .widget)
+                    .containerBackground(for: .widget) {
+                        CustomWidgetBackgroundView()
+                    }
             } else {
                 WordOfTheDayWidgetEntryView(entry: entry)
             }

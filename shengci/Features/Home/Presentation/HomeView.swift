@@ -10,12 +10,6 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-// MARK: - Home Display Mode
-enum HomeDisplayMode {
-    case focused
-    case overview
-}
-
 // MARK: - Haptic Feedback Manager
 final class HapticManager {
     static let shared = HapticManager()
@@ -64,7 +58,6 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @State private var currentWordID: UUID?
 
-    @State private var displayMode: HomeDisplayMode = .focused
     @State private var isLevelPickerPresented: Bool = false
     @State private var isRestoringProgress: Bool = false
     @State private var savedWordKeys: Set<String> = []
@@ -133,46 +126,29 @@ struct HomeView: View {
                 }
                 .frame(maxHeight: .infinity)
             } else {
-                // Main Content Views
-                Group {
-                    if displayMode == .overview {
-                        WordOverviewGrid(
-                            items: viewModel.overviewItems,
-                            currentWordID: $currentWordID,
-                            namespace: homeNamespace,
-                            savedWordKeys: savedWordKeys,
-                            onSelectWord: selectWordFromOverview
-                        )
-                        .transition(reduceMotion ? .opacity : .identity)
-                    } else {
-                        // Scrollable Feed
-                        ScrollView(.vertical) {
-                            LazyVStack(spacing: 0) {
-                                ForEach(viewModel.wordList) { word in
-                                    WordCardView(
-                                        word: word,
-                                        isBookmarked: isWordSaved(word),
-                                        namespace: homeNamespace,
-                                        isOverviewTransitionSource:
-                                            word.id == currentWordID,
-                                        onToggleBookmark: {
-                                            toggleBookmark(for: word)
-                                        }
-                                    )
-                                    .containerRelativeFrame([.horizontal, .vertical])
-                                    .id(word.id)
+                // Main Content Views (Scrollable Feed)
+                ScrollView(.vertical) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(viewModel.wordList) { word in
+                            WordCardView(
+                                word: word,
+                                isBookmarked: isWordSaved(word),
+                                namespace: homeNamespace,
+                                isOverviewTransitionSource: false,
+                                onToggleBookmark: {
+                                    toggleBookmark(for: word)
                                 }
-                            }
-                            .scrollTargetLayout()
+                            )
+                            .containerRelativeFrame([.horizontal, .vertical])
+                            .id(word.id)
                         }
-                        .scrollTargetBehavior(.paging)
-                        .scrollPosition(id: $currentWordID)
-                        .scrollIndicators(.hidden)
-                        .ignoresSafeArea()
-                        .transition(reduceMotion ? .opacity : .identity)
                     }
+                    .scrollTargetLayout()
                 }
-                .simultaneousGesture(pinchGesture)
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $currentWordID)
+                .scrollIndicators(.hidden)
+                .ignoresSafeArea()
 
                 // Pinned Header (Fixed on top, not scrollable)
                 HStack {
@@ -208,46 +184,19 @@ struct HomeView: View {
 
                     Spacer()
 
-                    // Grid / Feed Toggle Button & Counter
-                    HStack(spacing: 10) {
-                        Button {
-                            switchMode(
-                                to: displayMode == .focused ? .overview : .focused
+                    // Word Counter
+                    Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
+                        .font(.caption.monospacedDigit().weight(.medium))
+                        .foregroundColor(Color.darkForeground.opacity(0.55))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(
+                            Capsule().stroke(
+                                Color.black.opacity(0.1),
+                                lineWidth: 1
                             )
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(
-                                    systemName: displayMode == .focused
-                                        ? "square.grid.2x2.fill"
-                                        : "rectangle.portrait.on.rectangle.portrait.fill"
-                                )
-                                .font(.subheadline)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .overlay(
-                                Capsule().stroke(
-                                    Color.black.opacity(0.1),
-                                    lineWidth: 1
-                                )
-                            )
-                            .foregroundColor(Color.darkForeground)
-                        }
-                        .accessibilityLabel(
-                            displayMode == .focused
-                                ? "Switch to Overview Grid"
-                                : "Switch to Focused View"
                         )
-                        .accessibilityHint(
-                            "Toggles between zoomed-out grid and full-screen card feed"
-                        )
-
-                        Text("\(currentIndex + 1) / \(viewModel.wordList.count)")
-                            .font(.caption.monospacedDigit().weight(.medium))
-                            .foregroundColor(Color.darkForeground.opacity(0.55))
-                            .padding(.vertical, 6)
-                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
@@ -262,14 +211,12 @@ struct HomeView: View {
         .onAppear {
             updateSavedWordKeys(savedWords.map(\.simplified))
             if viewModel.currentLevel != selectedHSKLevel {
-                displayMode = .focused
                 viewModel.loadWords(level: selectedHSKLevel)
             } else if currentWordID == nil {
                 restoreProgress()
             }
         }
         .onChange(of: selectedHSKLevel) { _, newLevel in
-            displayMode = .focused
             viewModel.loadWords(level: newLevel)
         }
         .onChange(of: viewModel.wordList) {
@@ -277,43 +224,12 @@ struct HomeView: View {
         }
         .onChange(of: currentWordID) { _, newID in
             guard !isRestoringProgress else { return }
-            if displayMode == .focused {
-                HapticManager.shared.selection()
-            }
+            HapticManager.shared.selection()
             saveProgress(for: newID)
         }
         .onChange(of: savedWords.map(\.simplified)) { _, newKeys in
             updateSavedWordKeys(newKeys)
         }
-    }
-
-    private var pinchGesture: some Gesture {
-        MagnificationGesture()
-            .onEnded { finalScale in
-                if displayMode == .focused && finalScale < 0.85 {
-                    switchMode(to: .overview)
-                } else if displayMode == .overview && finalScale > 1.15 {
-                    switchMode(to: .focused)
-                }
-            }
-    }
-
-    private func switchMode(to newMode: HomeDisplayMode) {
-        guard displayMode != newMode else { return }
-        HapticManager.shared.impact(style: .light)
-        let animation: Animation? = reduceMotion
-            ? .easeOut(duration: 0.15)
-            : .spring(response: 0.38, dampingFraction: 0.82)
-        withAnimation(animation) {
-            displayMode = newMode
-        }
-    }
-
-    private func selectWordFromOverview(_ wordID: UUID) {
-        HapticManager.shared.selection()
-        currentWordID = wordID
-        saveProgress(for: wordID)
-        switchMode(to: .focused)
     }
 
     private func restoreProgress() {
