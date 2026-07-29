@@ -103,52 +103,6 @@ struct SettingsView: View {
                             .font(.footnote.weight(.semibold))
                             .foregroundColor(Color.darkForeground.opacity(0.6))
                     }
-
-                    // MARK: - Search Navigation Section
-                    Section {
-                        NavigationLink {
-                            DictionarySearchView()
-                        } label: {
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    Circle()
-                                        .fill(
-                                            Color.royalBlueAccent.opacity(0.15)
-                                        )
-                                        .frame(width: 38, height: 38)
-
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(Color.royalBlueAccent)
-                                }
-
-                                VStack(
-                                    alignment: .leading,
-                                    spacing: 2
-                                ) {
-                                    Text("Vocabulary Search")
-                                        .font(.body.weight(.semibold))
-                                        .foregroundColor(
-                                            Color.darkForeground
-                                        )
-
-                                    Text(
-                                        "Search Chinese, pinyin, or English"
-                                    )
-                                    .font(.caption)
-                                    .foregroundColor(
-                                        Color.darkForeground
-                                            .opacity(0.65)
-                                    )
-                                }
-                            }
-                        }
-                        .listRowBackground(Color.warmIvoryCard)
-                    } header: {
-                        Text("Search")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundColor(Color.darkForeground.opacity(0.6))
-                    }
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)

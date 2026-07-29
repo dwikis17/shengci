@@ -964,13 +964,12 @@ struct DictionarySearchView: View {
                 }
             }
         }
-        .navigationTitle("Dictionary")
+        .navigationTitle("Search")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(
             Color.creamBackground,
             for: .navigationBar
         )
-        .toolbar(.hidden, for: .tabBar)
         .searchable(
             text: $query,
             placement: .navigationBarDrawer(displayMode: .always),
