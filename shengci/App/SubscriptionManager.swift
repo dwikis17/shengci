@@ -4,7 +4,7 @@ import RevenueCat
 @MainActor
 @Observable
 final class SubscriptionManager {
-    static let entitlementIdentifier = "premium"
+    static let entitlementIdentifier = "Shengci Pro"
 
     private(set) var isPremium = false
     private(set) var hasLoaded = false

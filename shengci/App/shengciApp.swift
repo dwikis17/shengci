@@ -17,7 +17,7 @@ struct shengciApp: App {
     init() {
         // Replace this Test Store key with the Apple public SDK key before
         // testing App Store products or shipping.
-        Purchases.configure(withAPIKey: "test_RfQzXDCWWIqIXxiUfsNOEKmdmBR")
+        Purchases.configure(withAPIKey: "appl_sMPBEpmVOeSneZPoqdRPtKrpbEx")
     }
 
     var body: some Scene {
