@@ -6,9 +6,11 @@
 //
 
 import Testing
+import SwiftData
 import UserNotifications
 @testable import shengci
 
+@MainActor
 struct shengciTests {
     @Test func premiumAccessPolicy() {
         let free = PremiumAccess(isPremium: false)
@@ -85,6 +87,12 @@ struct shengciTests {
         #expect(!question.isCorrect("bad"))
     }
 
+    @Test func explainsPartOfSpeechCodes() {
+        #expect(PartOfSpeechFormatter.displayName(for: "v") == "Verb")
+        #expect(PartOfSpeechFormatter.displayName(for: "vn") == "Nominal verb")
+        #expect(PartOfSpeechFormatter.displayName(for: "unknown") == "UNKNOWN")
+    }
+
     @Test func choicesUseSameLevelWordsAndStaySafeWhenUndersized() {
         let target = word("你", meanings: ["you"])
         let peer = word("我", meanings: ["I"])
@@ -128,6 +136,86 @@ struct shengciTests {
         #expect(requests.first?.content.body.hasPrefix(word.formattedPinyin) == true)
     }
 
+    @Test func newestSavedWordActionWinsReconciliation() throws {
+        let container = try syncContainer()
+        let context = container.mainContext
+        let olderSave = SavedWord(
+            simplified: "好",
+            pinyin: "hao3",
+            savedAt: Date(timeIntervalSince1970: 100)
+        )
+        let newerRemoval = SavedWord(
+            simplified: "好",
+            pinyin: "hao3",
+            savedAt: Date(timeIntervalSince1970: 100)
+        )
+        newerRemoval.remove(at: Date(timeIntervalSince1970: 200))
+        context.insert(olderSave)
+        context.insert(newerRemoval)
+
+        try LearningDataSync.reconcile(in: context)
+
+        let records = try context.fetch(FetchDescriptor<SavedWord>())
+        #expect(records.count == 1)
+        #expect(records.first?.isSaved == false)
+    }
+
+    @Test func progressAndResetTimestampsMergeIndependently() throws {
+        let container = try syncContainer()
+        let context = container.mainContext
+        let newerPosition = LearningSyncState(
+            hskLevel: 2,
+            positionIndex: 42,
+            positionUpdatedAt: Date(timeIntervalSince1970: 300),
+            practiceResetAt: Date(timeIntervalSince1970: 100)
+        )
+        let newerReset = LearningSyncState(
+            hskLevel: 2,
+            positionIndex: 3,
+            positionUpdatedAt: Date(timeIntervalSince1970: 200),
+            practiceResetAt: Date(timeIntervalSince1970: 400)
+        )
+        context.insert(newerPosition)
+        context.insert(newerReset)
+
+        try LearningDataSync.reconcile(in: context)
+
+        let states = try context.fetch(FetchDescriptor<LearningSyncState>())
+        let state = try #require(states.first)
+        #expect(states.count == 1)
+        #expect(state.positionIndex == 42)
+        #expect(state.practiceResetAt == Date(timeIntervalSince1970: 400))
+    }
+
+    @Test func resetHidesSessionsThatArriveLater() {
+        let beforeReset = PracticeSessionRecord(
+            hskLevel: 1,
+            date: Date(timeIntervalSince1970: 100),
+            score: 1,
+            totalQuestions: 1,
+            items: []
+        )
+        let afterReset = PracticeSessionRecord(
+            hskLevel: 1,
+            date: Date(timeIntervalSince1970: 300),
+            score: 1,
+            totalQuestions: 1,
+            items: []
+        )
+        let state = LearningSyncState(
+            hskLevel: 1,
+            practiceResetAt: Date(timeIntervalSince1970: 200)
+        )
+
+        let visible = LearningDataSync.visibleSessions(
+            [beforeReset, afterReset],
+            states: [state],
+            level: 1
+        )
+
+        #expect(visible.map(\.id) == [afterReset.id])
+    }
+
     private func word(_ simplified: String, meanings: [String]) -> WordModel {
         WordModel(
             simplified: simplified,
@@ -148,6 +236,16 @@ struct shengciTests {
                     classifiers: []
                 )
             ]
+        )
+    }
+
+    private func syncContainer() throws -> ModelContainer {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        return try ModelContainer(
+            for: SavedWord.self,
+            PracticeSessionRecord.self,
+            LearningSyncState.self,
+            configurations: configuration
         )
     }
 }

@@ -10,14 +10,16 @@ import SwiftData
 
 @Model
 final class SavedWord {
-    @Attribute(.unique) var simplified: String
-    var pinyin: String
-    var traditional: String
-    var meaningsData: String
-    var radical: String
-    var frequency: Int
-    var posData: String
-    var savedAt: Date
+    var simplified: String = ""
+    var pinyin: String = ""
+    var traditional: String = ""
+    var meaningsData: String = ""
+    var radical: String = ""
+    var frequency: Int = 0
+    var posData: String = ""
+    var savedAt: Date = Date.distantPast
+    var isSaved: Bool = true
+    var modifiedAt: Date = Date.distantPast
     
     init(
         simplified: String,
@@ -37,6 +39,8 @@ final class SavedWord {
         self.frequency = frequency
         self.posData = pos.joined(separator: ",")
         self.savedAt = savedAt
+        self.isSaved = true
+        self.modifiedAt = savedAt
     }
     
     convenience init(from word: WordModel) {
@@ -59,5 +63,16 @@ final class SavedWord {
     
     var pos: [String] {
         posData.isEmpty ? [] : posData.components(separatedBy: ",")
+    }
+
+    func remove(at date: Date = Date()) {
+        isSaved = false
+        modifiedAt = date
+    }
+
+    func restore(at date: Date = Date()) {
+        isSaved = true
+        savedAt = date
+        modifiedAt = date
     }
 }

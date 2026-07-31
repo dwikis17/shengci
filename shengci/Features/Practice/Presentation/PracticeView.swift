@@ -5,6 +5,7 @@ struct PracticeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SubscriptionManager.self) private var subscriptions
     @Query private var sessionRecords: [PracticeSessionRecord]
+    @Query private var syncStates: [LearningSyncState]
 
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
     @AppStorage("lastFreePracticeStartedAt")
@@ -36,9 +37,11 @@ struct PracticeView: View {
     }
 
     private var levelPracticedWordSet: Set<String> {
-        let levelSessions = sessionRecords.filter {
-            $0.hskLevel == accessibleLevel
-        }
+        let levelSessions = LearningDataSync.visibleSessions(
+            sessionRecords,
+            states: syncStates,
+            level: accessibleLevel
+        )
         return Set(levelSessions.flatMap { $0.items.map { $0.simplified } })
     }
 

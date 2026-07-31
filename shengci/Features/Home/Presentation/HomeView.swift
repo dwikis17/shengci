@@ -55,6 +55,7 @@ struct HomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(SubscriptionManager.self) private var subscriptions
     @Query private var savedWords: [SavedWord]
+    @Query private var syncStates: [LearningSyncState]
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
     @StateObject private var viewModel = HomeViewModel()
     @State private var currentWordID: UUID?
@@ -216,7 +217,7 @@ struct HomeView: View {
                 .presentationDragIndicator(.visible)
         }
         .onAppear {
-            updateSavedWordKeys(savedWords.map(\.simplified))
+            updateSavedWordKeys(activeSavedWordKeys)
             if viewModel.currentLevel != accessibleLevel {
                 viewModel.loadWords(level: accessibleLevel)
             } else if currentWordID == nil {
@@ -237,17 +238,29 @@ struct HomeView: View {
             HapticManager.shared.selection()
             saveProgress(for: newID)
         }
-        .onChange(of: savedWords.map(\.simplified)) { _, newKeys in
-            updateSavedWordKeys(newKeys)
+        .onChange(of: savedWords.map { "\($0.simplified):\($0.isSaved):\($0.modifiedAt.timeIntervalSinceReferenceDate)" }) {
+            updateSavedWordKeys(activeSavedWordKeys)
         }
+        .onChange(of: syncStates.map { "\($0.hskLevel):\($0.positionUpdatedAt.timeIntervalSinceReferenceDate)" }) {
+            restoreProgress()
+        }
+    }
+
+    private var activeSavedWordKeys: [String] {
+        savedWords.filter(\.isSaved).map(\.simplified)
+    }
+
+    private func updateSavedWordKeys(_ keys: [String]) {
+        savedWordKeys = Set(keys)
     }
 
     private func restoreProgress() {
         guard !viewModel.wordList.isEmpty else { return }
         isRestoringProgress = true
-        let savedIndex = UserDefaults.standard.integer(
-            forKey: "hsk_progress_\(accessibleLevel)"
-        )
+        let savedIndex = syncStates
+            .filter { $0.hskLevel == accessibleLevel }
+            .max(by: { $0.positionUpdatedAt < $1.positionUpdatedAt })?
+            .positionIndex ?? 0
         let validIndex = min(
             max(0, savedIndex),
             viewModel.wordList.count - 1
@@ -264,18 +277,17 @@ struct HomeView: View {
                 $0.id == wordID
             })
         else { return }
-        UserDefaults.standard.set(
-            idx,
-            forKey: "hsk_progress_\(accessibleLevel)"
-        )
+        guard let state = try? LearningDataSync.state(
+            for: accessibleLevel,
+            in: modelContext
+        ) else { return }
+        state.positionIndex = idx
+        state.positionUpdatedAt = Date()
+        try? modelContext.save()
     }
 
     private func isWordSaved(_ word: WordModel) -> Bool {
         savedWordKeys.contains(word.simplified)
-    }
-
-    private func updateSavedWordKeys(_ keys: [String]) {
-        savedWordKeys = Set(keys)
     }
 
     private func toggleBookmark(for word: WordModel) {
@@ -283,11 +295,16 @@ struct HomeView: View {
         if let existing = savedWords.first(where: {
             $0.simplified == word.simplified
         }) {
-            modelContext.delete(existing)
+            if existing.isSaved {
+                existing.remove()
+            } else {
+                existing.restore()
+            }
         } else {
             let saved = SavedWord(from: word)
             modelContext.insert(saved)
         }
+        try? modelContext.save()
     }
 }
 
@@ -392,8 +409,13 @@ struct WordCardView: View {
                         ScrollView(.horizontal) {
                             HStack(spacing: 8) {
                                 ForEach(word.pos, id: \.self) { posTag in
-                                    Text(posTag.uppercased())
-                                        .font(.caption2.bold())
+                                    Text(
+                                        PartOfSpeechFormatter.displayName(
+                                            for: posTag
+                                        )
+                                    )
+                                        .font(.caption2.weight(.semibold))
+                                        .italic()
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 4)
                                         .background(

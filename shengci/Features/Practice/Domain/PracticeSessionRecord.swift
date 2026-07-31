@@ -13,12 +13,14 @@ struct SessionWordItem: Codable, Identifiable {
 
 @Model
 final class PracticeSessionRecord {
-    @Attribute(.unique) var id: UUID
-    var hskLevel: Int
-    var date: Date
-    var score: Int
-    var totalQuestions: Int
-    var itemsJSON: String
+    var id: UUID = UUID()
+    var hskLevel: Int = 1
+    var date: Date = Date.distantPast
+    var score: Int = 0
+    var totalQuestions: Int = 0
+    var itemsJSON: String = "[]"
+    var isDeleted: Bool = false
+    var modifiedAt: Date = Date.distantPast
 
     init(
         id: UUID = UUID(),
@@ -39,11 +41,17 @@ final class PracticeSessionRecord {
         } else {
             self.itemsJSON = "[]"
         }
+        self.modifiedAt = date
     }
 
     var items: [SessionWordItem] {
         guard let data = itemsJSON.data(using: .utf8) else { return [] }
         let decoder = JSONDecoder()
         return (try? decoder.decode([SessionWordItem].self, from: data)) ?? []
+    }
+
+    func remove(at date: Date = Date()) {
+        isDeleted = true
+        modifiedAt = date
     }
 }

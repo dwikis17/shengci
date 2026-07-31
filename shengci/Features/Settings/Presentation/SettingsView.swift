@@ -83,6 +83,20 @@ struct SettingsView: View {
                     }
                     .listRowBackground(Color.warmIvoryCard)
 
+                    Section {
+                        Label(
+                            "Automatic iCloud Sync",
+                            systemImage: "icloud.fill"
+                        )
+                    } header: {
+                        Text("iCloud")
+                    } footer: {
+                        Text(
+                            "Saved words, practice history, and reading position sync through your private iCloud account. Shengci keeps working locally when iCloud is unavailable."
+                        )
+                    }
+                    .listRowBackground(Color.warmIvoryCard)
+
                     // MARK: - Saved Characters Navigation Section
                     Section {
                         NavigationLink {

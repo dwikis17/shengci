@@ -40,3 +40,48 @@ public struct WordTranscription: Codable, Hashable, Sendable {
 }
 
 public typealias Word = WordModel
+
+enum PartOfSpeechFormatter {
+    private static let names = [
+        "a": "Adjective",
+        "ad": "Adverbial adjective",
+        "an": "Nominal adjective",
+        "b": "Attributive word",
+        "c": "Conjunction",
+        "cc": "Coordinating conjunction",
+        "d": "Adverb",
+        "e": "Interjection",
+        "f": "Locality word",
+        "g": "Morpheme",
+        "h": "Prefix",
+        "k": "Suffix",
+        "l": "Idiom",
+        "m": "Numeral",
+        "mg": "Numeral morpheme",
+        "mq": "Numeral–classifier",
+        "n": "Noun",
+        "nr": "Person name",
+        "ns": "Place name",
+        "nt": "Organization",
+        "nz": "Proper noun",
+        "o": "Onomatopoeia",
+        "p": "Preposition",
+        "q": "Classifier",
+        "qt": "Time classifier",
+        "qv": "Verbal classifier",
+        "r": "Pronoun",
+        "rg": "Pronoun morpheme",
+        "s": "Location word",
+        "t": "Time word",
+        "tg": "Time morpheme",
+        "u": "Particle",
+        "v": "Verb",
+        "vn": "Nominal verb",
+        "y": "Modal particle",
+        "z": "State word",
+    ]
+
+    static func displayName(for code: String) -> String {
+        names[code.lowercased()] ?? code.uppercased()
+    }
+}

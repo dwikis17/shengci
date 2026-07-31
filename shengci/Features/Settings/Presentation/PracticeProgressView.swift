@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PracticeProgressView: View {
     @Query private var allSessions: [PracticeSessionRecord]
+    @Query private var syncStates: [LearningSyncState]
 
     private let hskLevels = [1, 2, 3, 4, 5, 6, 7]
 
@@ -11,13 +12,20 @@ struct PracticeProgressView: View {
     }
 
     private func sessionCount(for level: Int) -> Int {
-        allSessions.filter { $0.hskLevel == level }.count
+        sessions(for: level).count
     }
 
     private func uniqueWordCount(for level: Int) -> Int {
-        let levelSessions = allSessions.filter { $0.hskLevel == level }
-        let words = levelSessions.flatMap { $0.items.map { $0.simplified } }
+        let words = sessions(for: level).flatMap { $0.items.map { $0.simplified } }
         return Set(words).count
+    }
+
+    private func sessions(for level: Int) -> [PracticeSessionRecord] {
+        LearningDataSync.visibleSessions(
+            allSessions,
+            states: syncStates,
+            level: level
+        )
     }
 
     var body: some View {
@@ -87,6 +95,9 @@ struct PracticeProgressView: View {
 #Preview {
     NavigationStack {
         PracticeProgressView()
-            .modelContainer(for: PracticeSessionRecord.self, inMemory: true)
+            .modelContainer(
+                for: [PracticeSessionRecord.self, LearningSyncState.self],
+                inMemory: true
+            )
     }
 }

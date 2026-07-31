@@ -15,7 +15,7 @@ struct ScannedWordDetailView: View {
 
   private var savedWord: SavedWord? {
     guard let simplified = canonicalEntry?.simplified else { return nil }
-    return savedWords.first { $0.simplified == simplified }
+    return savedWords.first { $0.simplified == simplified && $0.isSaved }
   }
 
   var body: some View {
@@ -88,16 +88,20 @@ struct ScannedWordDetailView: View {
   private func toggleSavedWord() {
     do {
       if let savedWord {
-        modelContext.delete(savedWord)
+        savedWord.remove()
       } else if let entry = canonicalEntry {
-        modelContext.insert(
-          SavedWord(
+        if let existing = savedWords.first(where: {
+          $0.simplified == entry.simplified
+        }) {
+          existing.restore()
+        } else {
+          modelContext.insert(SavedWord(
             simplified: entry.simplified,
             pinyin: entry.pinyin,
             traditional: entry.traditional,
             meanings: entry.definitions
-          )
-        )
+          ))
+        }
       }
       try modelContext.save()
     } catch {

@@ -156,8 +156,12 @@ struct ContentView: View {
 // MARK: - Saved Words SwiftData View (Cream theme)
 struct SavedWordsView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \SavedWord.savedAt, order: .reverse) private var savedWords:
+    @Query(sort: \SavedWord.savedAt, order: .reverse) private var allSavedWords:
         [SavedWord]
+
+    private var savedWords: [SavedWord] {
+        allSavedWords.filter(\.isSaved)
+    }
 
     var body: some View {
         ZStack {
@@ -255,8 +259,9 @@ struct SavedWordsView: View {
 
     private func deleteSavedWords(offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(savedWords[index])
+            savedWords[index].remove()
         }
+        try? modelContext.save()
     }
 }
 
@@ -301,7 +306,9 @@ struct WordOfTheDayDetailSheet: View {
     @State private var copied: Bool = false
 
     private var isBookmarked: Bool {
-        savedWords.contains(where: { $0.simplified == word.simplified })
+        savedWords.contains(where: {
+            $0.simplified == word.simplified && $0.isSaved
+        })
     }
 
     var body: some View {
@@ -364,8 +371,13 @@ struct WordOfTheDayDetailSheet: View {
                         if !word.pos.isEmpty {
                             HStack {
                                 ForEach(word.pos, id: \.self) { posTag in
-                                    Text(posTag.uppercased())
-                                        .font(.caption2.bold())
+                                    Text(
+                                        PartOfSpeechFormatter.displayName(
+                                            for: posTag
+                                        )
+                                    )
+                                        .font(.caption2.weight(.semibold))
+                                        .italic()
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
                                         .background(Color.royalBlueAccent.opacity(0.1))
@@ -484,7 +496,7 @@ struct WordOfTheDayDetailSheet: View {
     private func toggleSave() {
         HapticManager.shared.impact(style: .medium)
         if let existing = savedWords.first(where: { $0.simplified == word.simplified }) {
-            modelContext.delete(existing)
+            existing.isSaved ? existing.remove() : existing.restore()
         } else {
             let saved = SavedWord(
                 simplified: word.simplified,
@@ -496,11 +508,15 @@ struct WordOfTheDayDetailSheet: View {
             )
             modelContext.insert(saved)
         }
+        try? modelContext.save()
     }
 }
 
 #Preview {
     ContentView()
         .environment(SubscriptionManager())
-        .modelContainer(for: [SavedWord.self, PracticeSessionRecord.self], inMemory: true)
+        .modelContainer(
+            for: [SavedWord.self, PracticeSessionRecord.self, LearningSyncState.self],
+            inMemory: true
+        )
 }

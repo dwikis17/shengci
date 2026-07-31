@@ -5,12 +5,17 @@ struct HSKLevelSessionsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PracticeSessionRecord.date, order: .reverse)
     private var allSessions: [PracticeSessionRecord]
+    @Query private var syncStates: [LearningSyncState]
 
     let hskLevel: Int
     @State private var showResetAlert = false
 
     private var levelSessions: [PracticeSessionRecord] {
-        allSessions.filter { $0.hskLevel == hskLevel }
+        LearningDataSync.visibleSessions(
+            allSessions,
+            states: syncStates,
+            level: hskLevel
+        )
     }
 
     private var levelTitle: String {
@@ -79,6 +84,7 @@ struct HSKLevelSessionsView: View {
                             }
                             .listRowBackground(Color.warmIvoryCard)
                         }
+                        .onDelete(perform: deleteSessions)
                     } header: {
                         Text("\(levelSessions.count) Practice Sessions")
                             .font(.footnote.weight(.semibold))
@@ -112,8 +118,17 @@ struct HSKLevelSessionsView: View {
     }
 
     private func resetLevelSessions() {
-        for session in levelSessions {
-            modelContext.delete(session)
+        try? LearningDataSync.resetPractice(
+            level: hskLevel,
+            sessions: levelSessions,
+            in: modelContext
+        )
+    }
+
+    private func deleteSessions(offsets: IndexSet) {
+        let now = Date()
+        for index in offsets {
+            levelSessions[index].remove(at: now)
         }
         try? modelContext.save()
     }
