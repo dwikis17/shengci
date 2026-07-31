@@ -1,3 +1,5 @@
+import Foundation
+
 struct PremiumAccess {
     let isPremium: Bool
 
@@ -7,5 +9,16 @@ struct PremiumAccess {
 
     func allowsScanResult(hasUsedFreeResult: Bool) -> Bool {
         isPremium || !hasUsedFreeResult
+    }
+
+    func allowsPractice(
+        lastFreePracticeAt: Date?,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Bool {
+        isPremium
+            || lastFreePracticeAt.map {
+                !calendar.isDate($0, inSameDayAs: now)
+            } ?? true
     }
 }

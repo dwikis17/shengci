@@ -23,6 +23,48 @@ struct shengciTests {
         #expect(premium.allowsScanResult(hasUsedFreeResult: true))
     }
 
+    @Test func freePracticeResetsOnTheNextLocalDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Jakarta"))
+        let firstPractice = try #require(
+            calendar.date(from: DateComponents(
+                year: 2026,
+                month: 7,
+                day: 31,
+                hour: 9
+            ))
+        )
+        let laterToday = try #require(
+            calendar.date(byAdding: .hour, value: 2, to: firstPractice)
+        )
+        let tomorrow = try #require(
+            calendar.date(byAdding: .day, value: 1, to: firstPractice)
+        )
+        let free = PremiumAccess(isPremium: false)
+        let premium = PremiumAccess(isPremium: true)
+
+        #expect(free.allowsPractice(
+            lastFreePracticeAt: nil,
+            now: firstPractice,
+            calendar: calendar
+        ))
+        #expect(!free.allowsPractice(
+            lastFreePracticeAt: firstPractice,
+            now: laterToday,
+            calendar: calendar
+        ))
+        #expect(free.allowsPractice(
+            lastFreePracticeAt: firstPractice,
+            now: tomorrow,
+            calendar: calendar
+        ))
+        #expect(premium.allowsPractice(
+            lastFreePracticeAt: firstPractice,
+            now: laterToday,
+            calendar: calendar
+        ))
+    }
+
     @Test func quizUsesUniqueEligibleWordsAndLimitsSessionLength() {
         let words = (0..<12).map { word("字\($0)", meanings: ["meaning \($0)"]) }
             + [word("empty", meanings: [])]

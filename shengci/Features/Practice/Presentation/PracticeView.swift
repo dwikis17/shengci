@@ -7,6 +7,8 @@ struct PracticeView: View {
     @Query private var sessionRecords: [PracticeSessionRecord]
 
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
+    @AppStorage("lastFreePracticeStartedAt")
+    private var lastFreePracticeStartedAt: Double = 0
     @StateObject private var vocabulary = HomeViewModel()
     @State private var questions: [PracticeQuestion] = []
     @State private var currentQuestionIndex = 0
@@ -16,6 +18,8 @@ struct PracticeView: View {
     @State private var currentSessionItems: [SessionWordItem] = []
 
     @State private var isPracticing = false
+    @State private var isPaywallPresented = false
+    @State private var hasPendingPracticeStart = false
 
     private var accessibleLevel: Int {
         subscriptions.access.allowsHSKLevel(selectedHSKLevel)
@@ -89,6 +93,12 @@ struct PracticeView: View {
             resetSession()
             loadSelectedLevel()
         }
+        .sheet(
+            isPresented: $isPaywallPresented,
+            onDismiss: startPendingPracticeIfUnlocked
+        ) {
+            PremiumPaywall()
+        }
     }
 
     private var startView: some View {
@@ -108,7 +118,7 @@ struct PracticeView: View {
                         .foregroundColor(Color.darkForeground.opacity(0.65))
                 }
             }
-            Button(action: startSession) {
+            Button(action: requestPracticeStart) {
                 Label("Start Practice", systemImage: "play.fill")
                     .font(.headline)
                     .padding(.horizontal, 24)
@@ -209,7 +219,7 @@ struct PracticeView: View {
                         .foregroundColor(Color.royalBlueAccent)
                 }
 
-                Button(action: startSession) {
+                Button(action: requestPracticeStart) {
                     Label("Practice Again", systemImage: "arrow.clockwise")
                         .font(.headline)
                         .padding(.horizontal, 20)
@@ -251,6 +261,35 @@ struct PracticeView: View {
         {
             vocabulary.loadWords(level: accessibleLevel)
         }
+    }
+
+    private func requestPracticeStart() {
+        let now = Date()
+        let lastFreePracticeAt =
+            lastFreePracticeStartedAt > 0
+            ? Date(timeIntervalSince1970: lastFreePracticeStartedAt)
+            : nil
+
+        guard subscriptions.access.allowsPractice(
+            lastFreePracticeAt: lastFreePracticeAt,
+            now: now
+        ) else {
+            hasPendingPracticeStart = true
+            isPaywallPresented = true
+            return
+        }
+
+        if !subscriptions.isPremium {
+            lastFreePracticeStartedAt = now.timeIntervalSince1970
+        }
+        startSession()
+    }
+
+    private func startPendingPracticeIfUnlocked() {
+        guard hasPendingPracticeStart else { return }
+        hasPendingPracticeStart = false
+        guard subscriptions.isPremium else { return }
+        startSession()
     }
 
     private func startSession() {

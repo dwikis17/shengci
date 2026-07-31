@@ -12,6 +12,7 @@ import UIKit
 struct ContentView: View {
     @Environment(SubscriptionManager.self) private var subscriptions
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel = 1
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab: AppTab = .home
 
     enum AppTab: Hashable {
@@ -43,7 +44,14 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if #available(iOS 18.0, *) {
+            if !hasCompletedOnboarding {
+                OnboardingView {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        hasCompletedOnboarding = true
+                    }
+                }
+                .transition(.opacity)
+            } else if #available(iOS 18.0, *) {
                 TabView(selection: $selectedTab) {
                     Tab("Learn", systemImage: "play.rectangle.fill", value: AppTab.home) {
                         HomeView()
