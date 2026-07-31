@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PracticeView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(SubscriptionManager.self) private var subscriptions
     @Query private var sessionRecords: [PracticeSessionRecord]
 
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
@@ -16,16 +17,24 @@ struct PracticeView: View {
 
     @State private var isPracticing = false
 
+    private var accessibleLevel: Int {
+        subscriptions.access.allowsHSKLevel(selectedHSKLevel)
+            ? selectedHSKLevel
+            : 2
+    }
+
     private var currentQuestion: PracticeQuestion? {
         questions.indices.contains(currentQuestionIndex) ? questions[currentQuestionIndex] : nil
     }
 
     private var levelTitle: String {
-        "HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)")"
+        "HSK \(accessibleLevel == 7 ? "7-9" : "\(accessibleLevel)")"
     }
 
     private var levelPracticedWordSet: Set<String> {
-        let levelSessions = sessionRecords.filter { $0.hskLevel == selectedHSKLevel }
+        let levelSessions = sessionRecords.filter {
+            $0.hskLevel == accessibleLevel
+        }
         return Set(levelSessions.flatMap { $0.items.map { $0.simplified } })
     }
 
@@ -72,7 +81,11 @@ struct PracticeView: View {
             .toolbar(isPracticing ? .hidden : .visible, for: .tabBar)
         }
         .onAppear(perform: loadSelectedLevel)
-        .onChange(of: selectedHSKLevel) { _ in
+        .onChange(of: selectedHSKLevel) {
+            resetSession()
+            loadSelectedLevel()
+        }
+        .onChange(of: subscriptions.isPremium) {
             resetSession()
             loadSelectedLevel()
         }
@@ -233,8 +246,10 @@ struct PracticeView: View {
     }
 
     private func loadSelectedLevel() {
-        if vocabulary.currentLevel != selectedHSKLevel || vocabulary.wordList.isEmpty {
-            vocabulary.loadWords(level: selectedHSKLevel)
+        if vocabulary.currentLevel != accessibleLevel
+            || vocabulary.wordList.isEmpty
+        {
+            vocabulary.loadWords(level: accessibleLevel)
         }
     }
 
@@ -302,7 +317,7 @@ struct PracticeView: View {
     private func saveSessionRecord() {
         guard !currentSessionItems.isEmpty else { return }
         let record = PracticeSessionRecord(
-            hskLevel: selectedHSKLevel,
+            hskLevel: accessibleLevel,
             date: Date(),
             score: score,
             totalQuestions: currentSessionItems.count,
@@ -324,4 +339,5 @@ struct PracticeView: View {
 
 #Preview {
     PracticeView()
+        .environment(SubscriptionManager())
 }

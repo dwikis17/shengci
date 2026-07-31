@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		3EA6695D04F5039F64A76CB2 /* Pods_shengciTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63C4EFF5A695C9025325E7B3 /* Pods_shengciTests.framework */; };
+		64C9250D301C461800417C9D /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 64C9250C301C461800417C9D /* RevenueCat */; };
+		64C9250F301C461800417C9D /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 64C9250E301C461800417C9D /* RevenueCatUI */; };
 		9320F5E530187A6B006A6FE4 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9320F5E430187A6B006A6FE4 /* WidgetKit.framework */; };
 		9320F5E730187A6B006A6FE4 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9320F5E630187A6B006A6FE4 /* SwiftUI.framework */; };
 		9320F5F830187A6D006A6FE4 /* shengciWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9320F5E330187A6B006A6FE4 /* shengciWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -128,7 +130,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				64C9250F301C461800417C9D /* RevenueCatUI in Frameworks */,
 				F1ED8698E79EC188252724D4 /* Pods_shengci.framework in Frameworks */,
+				64C9250D301C461800417C9D /* RevenueCat in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -292,8 +296,6 @@
 				9320F5E830187A6B006A6FE4 /* shengciWidget */,
 			);
 			name = shengciWidgetExtension;
-			packageProductDependencies = (
-			);
 			productName = shengciWidgetExtension;
 			productReference = 9320F5E330187A6B006A6FE4 /* shengciWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -333,6 +335,9 @@
 			);
 			mainGroup = 645904A4301794950042C61E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				64C92509301C461800417C9D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 645904AE301794950042C61E /* Products */;
 			projectDirPath = "";
@@ -908,6 +913,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		64C92509301C461800417C9D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.82.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		64C9250C301C461800417C9D /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 64C92509301C461800417C9D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
+		64C9250E301C461800417C9D /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 64C92509301C461800417C9D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCatUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 645904A5301794950042C61E /* Project object */;
 }

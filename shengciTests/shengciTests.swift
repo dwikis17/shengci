@@ -9,6 +9,19 @@ import Testing
 @testable import shengci
 
 struct shengciTests {
+    @Test func premiumAccessPolicy() {
+        let free = PremiumAccess(isPremium: false)
+        let premium = PremiumAccess(isPremium: true)
+
+        #expect(free.allowsHSKLevel(1))
+        #expect(free.allowsHSKLevel(2))
+        #expect(!free.allowsHSKLevel(3))
+        #expect(free.allowsScanResult(hasUsedFreeResult: false))
+        #expect(!free.allowsScanResult(hasUsedFreeResult: true))
+        #expect(premium.allowsHSKLevel(7))
+        #expect(premium.allowsScanResult(hasUsedFreeResult: true))
+    }
+
     @Test func quizUsesUniqueEligibleWordsAndLimitsSessionLength() {
         let words = (0..<12).map { word("字\($0)", meanings: ["meaning \($0)"]) }
             + [word("empty", meanings: [])]

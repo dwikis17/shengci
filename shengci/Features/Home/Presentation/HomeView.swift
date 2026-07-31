@@ -53,6 +53,7 @@ final class SpeechSynthesizerManager {
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(SubscriptionManager.self) private var subscriptions
     @Query private var savedWords: [SavedWord]
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
     @StateObject private var viewModel = HomeViewModel()
@@ -63,6 +64,12 @@ struct HomeView: View {
     @State private var savedWordKeys: Set<String> = []
 
     @Namespace private var homeNamespace
+
+    private var accessibleLevel: Int {
+        subscriptions.access.allowsHSKLevel(selectedHSKLevel)
+            ? selectedHSKLevel
+            : 2
+    }
 
     private var currentIndex: Int {
         if let currentWordID = currentWordID,
@@ -87,7 +94,7 @@ struct HomeView: View {
                         .scaleEffect(1.3)
                         .tint(Color.darkForeground)
                     Text(
-                        "Loading HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)") Vocabulary..."
+                        "Loading HSK \(accessibleLevel == 7 ? "7-9" : "\(accessibleLevel)") Vocabulary..."
                     )
                     .font(.headline)
                     .foregroundColor(Color.darkForeground.opacity(0.8))
@@ -161,7 +168,7 @@ struct HomeView: View {
                             Image(systemName: "character.book.closed.fill")
                                 .font(.caption)
                             Text(
-                                "HSK \(selectedHSKLevel == 7 ? "7-9" : "\(selectedHSKLevel)")"
+                                "HSK \(accessibleLevel == 7 ? "7-9" : "\(accessibleLevel)")"
                             )
                             .font(.caption.bold())
                             Image(systemName: "chevron.down")
@@ -210,14 +217,17 @@ struct HomeView: View {
         }
         .onAppear {
             updateSavedWordKeys(savedWords.map(\.simplified))
-            if viewModel.currentLevel != selectedHSKLevel {
-                viewModel.loadWords(level: selectedHSKLevel)
+            if viewModel.currentLevel != accessibleLevel {
+                viewModel.loadWords(level: accessibleLevel)
             } else if currentWordID == nil {
                 restoreProgress()
             }
         }
-        .onChange(of: selectedHSKLevel) { _, newLevel in
-            viewModel.loadWords(level: newLevel)
+        .onChange(of: selectedHSKLevel) {
+            viewModel.loadWords(level: accessibleLevel)
+        }
+        .onChange(of: subscriptions.isPremium) {
+            viewModel.loadWords(level: accessibleLevel)
         }
         .onChange(of: viewModel.wordList) {
             restoreProgress()
@@ -236,7 +246,7 @@ struct HomeView: View {
         guard !viewModel.wordList.isEmpty else { return }
         isRestoringProgress = true
         let savedIndex = UserDefaults.standard.integer(
-            forKey: "hsk_progress_\(selectedHSKLevel)"
+            forKey: "hsk_progress_\(accessibleLevel)"
         )
         let validIndex = min(
             max(0, savedIndex),
@@ -256,7 +266,7 @@ struct HomeView: View {
         else { return }
         UserDefaults.standard.set(
             idx,
-            forKey: "hsk_progress_\(selectedHSKLevel)"
+            forKey: "hsk_progress_\(accessibleLevel)"
         )
     }
 
@@ -592,6 +602,9 @@ struct WordCardView: View {
 struct HSKLevelPickerSheet: View {
     @Binding var selectedLevel: Int
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @State private var pendingLevel: Int?
+    @State private var isPaywallPresented = false
 
     struct LevelItem: Identifiable {
         let id: Int
@@ -656,6 +669,13 @@ struct HSKLevelPickerSheet: View {
                         ForEach(levels) { item in
                             Button {
                                 HapticManager.shared.selection()
+                                guard subscriptions.access
+                                    .allowsHSKLevel(item.id)
+                                else {
+                                    pendingLevel = item.id
+                                    isPaywallPresented = true
+                                    return
+                                }
                                 selectedLevel = item.id
                                 dismiss()
                             } label: {
@@ -678,7 +698,15 @@ struct HSKLevelPickerSheet: View {
 
                                     Spacer()
 
-                                    if selectedLevel == item.id {
+                                    if !subscriptions.access
+                                        .allowsHSKLevel(item.id)
+                                    {
+                                        Image(systemName: "lock.fill")
+                                            .font(.caption)
+                                            .foregroundColor(
+                                                Color.darkForeground.opacity(0.45)
+                                            )
+                                    } else if selectedLevel == item.id {
                                         Image(
                                             systemName: "checkmark.circle.fill"
                                         )
@@ -704,10 +732,23 @@ struct HSKLevelPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.creamBackground, for: .navigationBar)
         }
+        .sheet(
+            isPresented: $isPaywallPresented,
+            onDismiss: selectPendingLevelIfUnlocked
+        ) {
+            PremiumPaywall()
+        }
+    }
+
+    private func selectPendingLevelIfUnlocked() {
+        guard subscriptions.isPremium, let pendingLevel else { return }
+        selectedLevel = pendingLevel
+        dismiss()
     }
 }
 
 #Preview {
     HomeView()
+        .environment(SubscriptionManager())
         .modelContainer(for: SavedWord.self, inMemory: true)
 }

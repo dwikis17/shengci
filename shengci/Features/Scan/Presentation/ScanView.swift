@@ -2,10 +2,14 @@ import PhotosUI
 import SwiftUI
 
 struct ScanView: View {
+  @Environment(SubscriptionManager.self) private var subscriptions
   @Environment(\.openURL) private var openURL
   @Environment(\.scenePhase) private var scenePhase
+  @AppStorage("hasUsedFreeScanResult") private var hasUsedFreeScanResult = false
   @State private var model: ScanViewModel
   @State private var selectedPhoto: PhotosPickerItem?
+  @State private var pendingTranscript: String?
+  @State private var isPaywallPresented = false
 
   init(recognizer: any OCRRecognizing = AppleOCRRecognizer()) {
     _model = State(
@@ -49,6 +53,12 @@ struct ScanView: View {
       ScannedTextSheet(selection: selection)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+    .sheet(
+      isPresented: $isPaywallPresented,
+      onDismiss: openPendingTranscriptIfUnlocked
+    ) {
+      PremiumPaywall()
     }
     .task {
       model.prepareCamera()
@@ -96,7 +106,7 @@ struct ScanView: View {
         LiveTextScannerView(
           isScanning: scenePhase == .active
             && model.selectedText == nil,
-          onSelectText: model.selectTranscript,
+          onSelectText: selectTranscript,
           onUnavailable: model.scannerDidBecomeUnavailable
         )
         .ignoresSafeArea(edges: .bottom)
@@ -159,7 +169,31 @@ struct ScanView: View {
   }
 
   private func selectRegion(_ region: OCRTextRegion) {
-    model.selectTranscript(region.transcript)
+    selectTranscript(region.transcript)
+  }
+
+  private func selectTranscript(_ transcript: String) {
+    let transcript = ChineseText.sanitized(transcript)
+    guard !transcript.isEmpty else { return }
+
+    guard subscriptions.access.allowsScanResult(
+      hasUsedFreeResult: hasUsedFreeScanResult
+    ) else {
+      pendingTranscript = transcript
+      isPaywallPresented = true
+      return
+    }
+
+    if !subscriptions.isPremium {
+      hasUsedFreeScanResult = true
+    }
+    model.selectTranscript(transcript)
+  }
+
+  private func openPendingTranscriptIfUnlocked() {
+    guard subscriptions.isPremium, let pendingTranscript else { return }
+    self.pendingTranscript = nil
+    model.selectTranscript(pendingTranscript)
   }
 
   private func openAppSettings() {

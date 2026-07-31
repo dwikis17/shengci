@@ -10,6 +10,8 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @AppStorage("selectedHSKLevel") private var selectedHSKLevel = 1
     @State private var selectedTab: AppTab = .home
 
     enum AppTab: Hashable {
@@ -126,8 +128,21 @@ struct ContentView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .onChange(of: subscriptions.hasLoaded) {
+            resetLockedLevelIfNeeded()
+        }
+        .onChange(of: subscriptions.isPremium) {
+            resetLockedLevelIfNeeded()
+        }
     }
     @State private var deepLinkedWord: WordOfTheDay? = nil
+
+    private func resetLockedLevelIfNeeded() {
+        guard subscriptions.hasLoaded, !subscriptions.isPremium,
+            selectedHSKLevel > 2
+        else { return }
+        selectedHSKLevel = 2
+    }
 }
 
 // MARK: - Saved Words SwiftData View (Cream theme)
@@ -478,5 +493,6 @@ struct WordOfTheDayDetailSheet: View {
 
 #Preview {
     ContentView()
+        .environment(SubscriptionManager())
         .modelContainer(for: [SavedWord.self, PracticeSessionRecord.self], inMemory: true)
 }
