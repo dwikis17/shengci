@@ -27,11 +27,13 @@ struct shengciApp: App {
                 .preferredColorScheme(.light)
                 .task {
                     await subscriptions.refresh()
+                    await DailyWordNotificationManager.shared.refreshIfEnabled()
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task {
                         await subscriptions.refresh()
+                        await DailyWordNotificationManager.shared.refreshIfEnabled()
                     }
                 }
         }

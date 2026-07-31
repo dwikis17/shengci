@@ -18,7 +18,7 @@ public struct WordOfTheDay: Codable, Identifiable, Sendable {
     public let hskLevel: Int
     public let pos: [String]
 
-    public init(
+    public nonisolated init(
         simplified: String,
         traditional: String = "",
         pinyin: String,
@@ -40,12 +40,12 @@ public struct WordOfTheDay: Codable, Identifiable, Sendable {
 }
 
 public final class WordOfTheDayManager: Sendable {
-    public static let shared = WordOfTheDayManager()
+    public nonisolated static let shared = WordOfTheDayManager()
 
-    private init() {}
+    private nonisolated init() {}
 
     /// Returns the Word of the Day deterministically based on the given Date.
-    public func getWord(for date: Date = Date()) -> WordOfTheDay {
+    public nonisolated func getWord(for date: Date = Date()) -> WordOfTheDay {
         let calendar = Calendar.current
         let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
         let year = calendar.component(.year, from: date)
@@ -80,7 +80,7 @@ public final class WordOfTheDayManager: Sendable {
         )
     }
 
-    private func loadWordFromHSK(level: Int, seed: Int) -> WordOfTheDay? {
+    private nonisolated func loadWordFromHSK(level: Int, seed: Int) -> WordOfTheDay? {
         let fileName = "hsk\(level)"
         guard let url = findJSONURL(fileName: fileName),
               let data = try? Data(contentsOf: url),
@@ -111,7 +111,7 @@ public final class WordOfTheDayManager: Sendable {
         )
     }
 
-    private func findJSONURL(fileName: String) -> URL? {
+    private nonisolated func findJSONURL(fileName: String) -> URL? {
         if let url = Bundle.main.url(forResource: fileName, withExtension: "json") {
             return url
         }

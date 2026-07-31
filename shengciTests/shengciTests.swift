@@ -6,6 +6,7 @@
 //
 
 import Testing
+import UserNotifications
 @testable import shengci
 
 struct shengciTests {
@@ -51,6 +52,38 @@ struct shengciTests {
         #expect(Set(choices).isSubset(of: Set(["you", "I"])))
         #expect(choices.count == 2)
         #expect(PracticeQuiz.makeQuestions(from: []).isEmpty)
+    }
+
+    @Test func schedulesSixtyDailyWordsFromTheNextNineAM() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let now = try #require(
+            calendar.date(from: DateComponents(
+                year: 2026,
+                month: 7,
+                day: 31,
+                hour: 8
+            ))
+        )
+
+        let requests = DailyWordNotificationManager.makeRequests(
+            from: now,
+            calendar: calendar
+        )
+
+        #expect(requests.count == 60)
+        #expect(Set(requests.map(\.identifier)).count == 60)
+
+        let trigger = try #require(
+            requests.first?.trigger as? UNCalendarNotificationTrigger
+        )
+        #expect(trigger.dateComponents.hour == 9)
+        #expect(trigger.dateComponents.day == 31)
+
+        let delivery = try #require(calendar.date(from: trigger.dateComponents))
+        let word = WordOfTheDayManager.shared.getWord(for: delivery)
+        #expect(requests.first?.content.title == word.simplified)
+        #expect(requests.first?.content.body.hasPrefix(word.formattedPinyin) == true)
     }
 
     private func word(_ simplified: String, meanings: [String]) -> WordModel {

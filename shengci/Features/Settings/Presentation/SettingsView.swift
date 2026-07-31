@@ -11,8 +11,12 @@ import UIKit
 
 struct SettingsView: View {
     @Environment(SubscriptionManager.self) private var subscriptions
+    @AppStorage(DailyWordNotificationManager.enabledKey)
+    private var dailyWordNotificationsEnabled = false
     @State private var isPaywallPresented = false
     @State private var isRestoring = false
+    @State private var isUpdatingNotifications = false
+    @State private var notificationPermissionDenied = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -60,6 +64,22 @@ struct SettingsView: View {
                                 ? "Manage your subscription with Apple."
                                 : "Unlock unlimited Scan and HSK 3–9."
                         )
+                    }
+                    .listRowBackground(Color.warmIvoryCard)
+
+                    Section {
+                        Toggle(
+                            "Daily Word Notification",
+                            isOn: Binding(
+                                get: { dailyWordNotificationsEnabled },
+                                set: updateDailyWordNotifications
+                            )
+                        )
+                        .disabled(isUpdatingNotifications)
+                    } header: {
+                        Text("Reminders")
+                    } footer: {
+                        Text("Receive the word of the day at 9:00 AM.")
                     }
                     .listRowBackground(Color.warmIvoryCard)
 
@@ -175,6 +195,16 @@ struct SettingsView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+        .alert(
+            "Notifications",
+            isPresented: $notificationPermissionDenied
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(
+                "Notifications couldn’t be enabled. Allow notifications for Shengci in Settings and try again."
+            )
+        }
     }
 
     private func restorePurchases() {
@@ -188,6 +218,28 @@ struct SettingsView: View {
                 }
             } catch {
                 errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func updateDailyWordNotifications(_ enabled: Bool) {
+        if !enabled {
+            dailyWordNotificationsEnabled = false
+            Task {
+                _ = await DailyWordNotificationManager.shared.setEnabled(false)
+            }
+            return
+        }
+
+        isUpdatingNotifications = true
+        Task {
+            let didEnable =
+                await DailyWordNotificationManager.shared.setEnabled(true)
+            dailyWordNotificationsEnabled = didEnable
+            isUpdatingNotifications = false
+
+            if !didEnable {
+                notificationPermissionDenied = true
             }
         }
     }
