@@ -63,6 +63,7 @@ struct HomeView: View {
     @Query private var savedWords: [SavedWord]
     @Query private var syncStates: [LearningSyncState]
     @AppStorage("selectedHSKLevel") private var selectedHSKLevel: Int = 1
+    @AppStorage("hasSeenHomeScrollHint") private var hasSeenHomeScrollHint = false
     @StateObject private var viewModel = HomeViewModel()
     @State private var currentWordID: UUID?
 
@@ -270,6 +271,16 @@ struct HomeView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
                 .zIndex(10)
+
+                if displayMode == .focused && !hasSeenHomeScrollHint {
+                    scrollHintOverlay
+                        .transition(
+                            reduceMotion
+                                ? .opacity
+                                : .move(edge: .bottom).combined(with: .opacity)
+                        )
+                        .zIndex(20)
+                }
             }
         }
         .sheet(isPresented: $isLevelPickerPresented) {
@@ -305,6 +316,9 @@ struct HomeView: View {
         }
         .onChange(of: currentWordID) { _, newID in
             guard !isRestoringProgress else { return }
+            if newID != nil {
+                dismissScrollHint()
+            }
             HapticManager.shared.selection()
             saveProgress(for: newID)
         }
@@ -313,6 +327,46 @@ struct HomeView: View {
         }
         .onChange(of: syncStates.map { "\($0.hskLevel):\($0.positionUpdatedAt.timeIntervalSinceReferenceDate)" }) {
             restoreProgress()
+        }
+    }
+
+    private var scrollHintOverlay: some View {
+        VStack {
+            Spacer()
+
+            VStack(spacing: 8) {
+                Image(systemName: "arrow.up.and.down")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.royalBlueAccent)
+
+                Text("Swipe up or down")
+                    .font(.subheadline.weight(.semibold))
+
+                Text("to browse words")
+                    .font(.caption)
+                    .foregroundStyle(Color.darkForeground.opacity(0.65))
+            }
+            .foregroundStyle(Color.darkForeground)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
+            }
+            .shadow(color: Color.black.opacity(0.10), radius: 12, y: 4)
+            .padding(.bottom, 104)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Swipe up or down to browse words")
+    }
+
+    private func dismissScrollHint() {
+        guard !hasSeenHomeScrollHint else { return }
+        withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .easeInOut(duration: 0.25)) {
+            hasSeenHomeScrollHint = true
         }
     }
 
