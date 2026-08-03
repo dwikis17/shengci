@@ -16,9 +16,20 @@
       "blur-material" : null,
       "layers" : [
         {
-          "fill" : {
-            "solid" : "display-p3:0.96783,0.00000,0.01794,1.00000"
-          },
+          "blend-mode" : "normal",
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "extended-gray:0.00000,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "display-p3:0.92827,0.96783,0.95819,1.00000"
+              }
+            }
+          ],
           "image-name" : "词.svg",
           "name" : "词",
           "position" : {
@@ -43,9 +54,20 @@
     {
       "layers" : [
         {
-          "fill" : {
-            "solid" : "display-p3:0.96783,0.00000,0.01794,1.00000"
-          },
+          "blend-mode" : "normal",
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "extended-gray:0.00000,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "display-p3:0.92827,0.96783,0.95819,1.00000"
+              }
+            }
+          ],
           "image-name" : "生.svg",
           "name" : "生",
           "position" : {
