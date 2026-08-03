@@ -1,0 +1,9 @@
+Stroke-order data for Shengci is derived from Make Me a Hanzi graphics data
+at revision bddc96d41bef78427ed0e034e9f7e31d71fd1b92.
+
+The graphics are derived from Arphic PL KaitiM GB and Arphic PL UKai and are
+redistributed under the Arphic Public License. The license text is included
+in ARPHICPL.TXT and the source snapshot is documented in the repository's
+scripts/stroke-order-source directory.
+
+Source: https://github.com/skishore/makemeahanzi

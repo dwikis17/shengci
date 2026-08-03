@@ -483,6 +483,7 @@ struct WordCardView: View {
 
     @State private var copiedFeedback: Bool = false
     @State private var isSpeaking: Bool = false
+    @State private var isWritingPresented: Bool = false
 
     private var primaryForm: WordForm? {
         word.forms.first
@@ -617,18 +618,7 @@ struct WordCardView: View {
                                 Array(meanings.prefix(4).enumerated()),
                                 id: \.offset
                             ) { idx, meaning in
-                                HStack(alignment: .top, spacing: 8) {
-                                    Text("\(idx + 1).")
-                                        .font(.subheadline.bold())
-                                        .foregroundColor(Color.royalBlueAccent)
-                                    Text(meaning)
-                                        .font(.subheadline)
-                                        .foregroundColor(Color.darkForeground.opacity(0.9))
-                                        .fixedSize(
-                                            horizontal: false,
-                                            vertical: true
-                                        )
-                                }
+                                meaningRow(index: idx, meaning: meaning)
                             }
                         }
                     }
@@ -663,9 +653,21 @@ struct WordCardView: View {
                         .frame(height: 1)
                         .padding(.vertical, 2)
 
-                    // Horizontal Action Buttons (Audio, Save, Copy) below meanings
+                    // Horizontal Action Buttons (Writing, Audio, Save, Copy) below meanings
                     HStack {
                         Spacer()
+
+                        // Stroke-order Tutor
+                        Button {
+                            isWritingPresented = true
+                        } label: {
+                            Image(systemName: "pencil.and.outline")
+                                .font(.subheadline)
+                                .foregroundColor(Color.royalBlueAccent)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                        }
+                        .accessibilityLabel("Learn to write \(word.simplified)")
 
                         // Audio Button
                         Button {
@@ -772,6 +774,25 @@ struct WordCardView: View {
                 }
                 .padding(.bottom, 40)
             }
+        }
+        .sheet(isPresented: $isWritingPresented) {
+            NavigationStack {
+                StrokeOrderLessonView(word: word.simplified)
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func meaningRow(index: Int, meaning: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(String(index + 1) + ".")
+                .font(.subheadline.bold())
+                .foregroundColor(Color.royalBlueAccent)
+            Text(meaning)
+                .font(.subheadline)
+                .foregroundColor(Color.darkForeground.opacity(0.9))
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

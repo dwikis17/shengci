@@ -184,6 +184,29 @@ struct SettingsView: View {
                             .font(.footnote.weight(.semibold))
                             .foregroundColor(Color.darkForeground.opacity(0.6))
                     }
+
+                    Section {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Stroke-order data: Make Me a Hanzi")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Color.darkForeground)
+                            Text("Derived from Arphic PL KaitiM GB and Arphic PL UKai under the Arphic Public License.")
+                                .font(.caption)
+                                .foregroundStyle(Color.darkForeground.opacity(0.65))
+                            Link(
+                                "View source project",
+                                destination: URL(string: "https://github.com/skishore/makemeahanzi")!
+                            )
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.royalBlueAccent)
+                        }
+                        .padding(.vertical, 4)
+                    } header: {
+                        Text("About")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(Color.darkForeground.opacity(0.6))
+                    }
+                    .listRowBackground(Color.warmIvoryCard)
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
