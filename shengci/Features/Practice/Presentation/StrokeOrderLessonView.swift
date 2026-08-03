@@ -13,13 +13,19 @@ struct StrokeOrderLessonView: View {
     @State private var strokeIndex = 0
     @State private var drawnStrokes: [[CGPoint]] = []
     @State private var currentLine: [CGPoint] = []
-    @State private var didDrawCurrentStroke = false
     @State private var isCharacterComplete = false
+    @State private var isAdvancingStroke = false
+    @State private var validationMessage: String?
+    @State private var isValidationError = false
     @State private var isAnimating = false
     @State private var animationStrokeIndex = 0
     @State private var animationProgress: CGFloat = 0
     @State private var animationTask: Task<Void, Never>?
+    @State private var transitionTask: Task<Void, Never>?
+    @State private var validationFeedbackTask: Task<Void, Never>?
     @State private var hasAppeared = false
+
+    private let validator = StrokeOrderStrokeValidator()
 
     init(word: String, dataStore: StrokeOrderDataStore? = nil) {
         self.word = word
@@ -62,6 +68,8 @@ struct StrokeOrderLessonView: View {
         }
         .onDisappear {
             animationTask?.cancel()
+            transitionTask?.cancel()
+            validationFeedbackTask?.cancel()
         }
     }
 
@@ -137,6 +145,7 @@ struct StrokeOrderLessonView: View {
                 .buttonStyle(.bordered)
                 .tint(Color.royalBlueAccent)
                 .disabled(currentData == nil)
+                .accessibilityIdentifier("stroke-order-replay")
 
                 Button(action: clearCurrentStroke) {
                     Label("Clear", systemImage: "trash")
@@ -145,30 +154,30 @@ struct StrokeOrderLessonView: View {
                 .tint(Color.roseAccent)
                 .disabled(
                     isAnimating
-                        || (!didDrawCurrentStroke && currentLine.isEmpty)
+                        || isAdvancingStroke
+                        || currentLine.isEmpty
                 )
+                .accessibilityIdentifier("stroke-order-clear")
+            }
+
+            if let validationMessage {
+                Label(validationMessage, systemImage: "arrow.uturn.backward.circle")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.roseAccent)
+                    .multilineTextAlignment(.center)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .accessibilityLabel(validationMessage)
             }
 
             if isCharacterComplete {
                 characterNavigationButton
-            } else {
-                Button(action: nextStroke) {
-                    Text("Next Stroke")
-                        .font(.headline)
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 14)
-                        .background(Capsule().fill(Color.royalBlueAccent))
-                        .foregroundStyle(.white)
-                }
-                .disabled(isAnimating || !didDrawCurrentStroke)
-                .accessibilityHint("Draw the highlighted stroke before continuing")
             }
         }
     }
 
     @ViewBuilder
     private func tutorCanvas(for character: StrokeOrderCharacter) -> some View {
-        GeometryReader { _ in
+        GeometryReader { geometry in
             ZStack {
                 Color.warmIvoryCard
                 guideGrid
@@ -187,19 +196,31 @@ struct StrokeOrderLessonView: View {
                             appendPoint(value.location)
                         }
                         .onEnded { value in
-                            finishStroke(at: value.location)
+                            finishStroke(
+                                at: value.location,
+                                in: CGRect(origin: .zero, size: geometry.size)
+                            )
                         }
                 )
                 .allowsHitTesting(
-                    !isAnimating && !isCharacterComplete && currentData != nil
+                    !isAnimating
+                        && !isCharacterComplete
+                        && !isAdvancingStroke
+                        && currentData != nil
                 )
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(canvasAccessibilityLabel(for: character))
+                .accessibilityIdentifier("stroke-order-canvas")
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
+                    .stroke(
+                        isValidationError
+                            ? Color.roseAccent.opacity(0.65)
+                            : Color.black.opacity(0.08),
+                        lineWidth: 1
+                    )
             }
         }
         .frame(height: 280)
@@ -305,7 +326,11 @@ struct StrokeOrderLessonView: View {
         )
         context.stroke(
             Path(stroke.medianPath(in: rect)),
-            with: .color(Color.royalBlueAccent.opacity(0.55)),
+            with: .color(
+                isValidationError
+                    ? Color.roseAccent.opacity(0.65)
+                    : Color.royalBlueAccent.opacity(0.55)
+            ),
             style: StrokeStyle(lineWidth: 3, dash: [7, 5])
         )
         renderStartMarker(stroke, in: &context, rect: rect)
@@ -342,42 +367,94 @@ struct StrokeOrderLessonView: View {
     }
 
     private func appendPoint(_ point: CGPoint) {
-        guard !isAnimating, !isCharacterComplete, !didDrawCurrentStroke else {
+        guard !isAnimating, !isCharacterComplete, !isAdvancingStroke else {
             return
         }
         currentLine.append(point)
     }
 
-    private func finishStroke(at point: CGPoint) {
+    private func finishStroke(at point: CGPoint, in rect: CGRect) {
         appendPoint(point)
-        guard !currentLine.isEmpty else { return }
-        didDrawCurrentStroke = true
-    }
-
-    private func nextStroke() {
-        guard didDrawCurrentStroke,
+        guard !currentLine.isEmpty,
             !isAnimating,
+            !isCharacterComplete,
+            !isAdvancingStroke,
             let currentData,
             currentData.strokes.indices.contains(strokeIndex)
         else {
             return
         }
 
+        let result = validator.validate(
+            points: currentLine,
+            for: currentData.strokes[strokeIndex],
+            in: rect
+        )
+
+        switch result {
+        case .accepted:
+            acceptCurrentStroke(in: currentData)
+        case .rejected(let failure):
+            rejectCurrentStroke(failure)
+        }
+    }
+
+    private func acceptCurrentStroke(in character: StrokeOrderCharacter) {
+        transitionTask?.cancel()
+        validationFeedbackTask?.cancel()
+        validationMessage = nil
+        isValidationError = false
         drawnStrokes.append(currentLine)
         currentLine = []
-        didDrawCurrentStroke = false
+        isAdvancingStroke = true
 
-        if strokeIndex + 1 == currentData.strokes.count {
-            isCharacterComplete = true
-        } else {
-            strokeIndex += 1
+        transitionTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(240))
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled else { return }
+            isAdvancingStroke = false
+
+            if strokeIndex + 1 == character.strokes.count {
+                isCharacterComplete = true
+            } else {
+                strokeIndex += 1
+            }
+        }
+    }
+
+    private func rejectCurrentStroke(
+        _ failure: StrokeOrderStrokeValidator.Failure
+    ) {
+        transitionTask?.cancel()
+        currentLine = []
+        validationMessage = failure.coachingMessage
+        isValidationError = true
+        HapticManager.shared.impact(style: .light)
+
+        validationFeedbackTask?.cancel()
+        validationFeedbackTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(1_200))
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled else { return }
+            validationMessage = nil
+            isValidationError = false
         }
     }
 
     private func clearCurrentStroke() {
-        guard !isAnimating else { return }
+        guard !isAnimating, !isAdvancingStroke else { return }
         currentLine = []
-        didDrawCurrentStroke = false
+        validationFeedbackTask?.cancel()
+        validationMessage = nil
+        isValidationError = false
     }
 
     private func replay() {
@@ -421,10 +498,14 @@ struct StrokeOrderLessonView: View {
 
     private func resetCharacter() {
         animationTask?.cancel()
+        transitionTask?.cancel()
+        validationFeedbackTask?.cancel()
         drawnStrokes = []
         currentLine = []
-        didDrawCurrentStroke = false
         isCharacterComplete = false
+        isAdvancingStroke = false
+        validationMessage = nil
+        isValidationError = false
         strokeIndex = 0
         isAnimating = false
         animationStrokeIndex = 0
@@ -456,6 +537,11 @@ struct StrokeOrderLessonView: View {
                 )
                 .foregroundStyle(.white)
         }
+        .accessibilityIdentifier(
+            isLastCharacter
+                ? "stroke-order-done"
+                : "stroke-order-next-character"
+        )
     }
 
     private func unavailableView(message: String) -> some View {
@@ -481,6 +567,12 @@ struct StrokeOrderLessonView: View {
     ) -> String {
         if isAnimating {
             return "Animating \(character.character) stroke order"
+        }
+        if let validationMessage {
+            return "Stroke rejected. \(validationMessage)"
+        }
+        if isAdvancingStroke {
+            return "Stroke accepted. Advancing to the next stroke"
         }
         if isCharacterComplete {
             return "Completed \(character.character)"

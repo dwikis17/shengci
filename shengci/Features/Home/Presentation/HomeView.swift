@@ -668,6 +668,7 @@ struct WordCardView: View {
                                 .padding(.vertical, 8)
                         }
                         .accessibilityLabel("Learn to write \(word.simplified)")
+                        .accessibilityIdentifier("learn-to-write-action")
 
                         // Audio Button
                         Button {
