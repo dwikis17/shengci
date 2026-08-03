@@ -68,6 +68,8 @@ struct HomeView: View {
 
     @State private var displayMode: HomeDisplayMode = .focused
     @State private var isLevelPickerPresented: Bool = false
+    @State private var isPaywallPresented: Bool = false
+    @State private var isOverviewPending: Bool = false
     @State private var isRestoringProgress: Bool = false
     @State private var savedWordKeys: Set<String> = []
 
@@ -242,7 +244,9 @@ struct HomeView: View {
                         }
                         .accessibilityLabel(
                             displayMode == .focused
-                                ? "Switch to Overview Grid"
+                                ? (subscriptions.isPremium
+                                    ? "Switch to Overview Grid"
+                                    : "Unlock Overview Grid")
                                 : "Switch to Focused View"
                         )
                         .accessibilityHint(
@@ -272,6 +276,12 @@ struct HomeView: View {
             HSKLevelPickerSheet(selectedLevel: $selectedHSKLevel)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(
+            isPresented: $isPaywallPresented,
+            onDismiss: openPendingOverviewIfUnlocked
+        ) {
+            PremiumPaywall()
         }
         .onAppear {
             updateSavedWordKeys(activeSavedWordKeys)
@@ -318,6 +328,11 @@ struct HomeView: View {
     }
 
     private func switchMode(to newMode: HomeDisplayMode) {
+        guard newMode != .overview || subscriptions.isPremium else {
+            isOverviewPending = true
+            isPaywallPresented = true
+            return
+        }
         guard displayMode != newMode else { return }
         HapticManager.shared.impact(style: .light)
         let animation: Animation? = reduceMotion
@@ -326,6 +341,13 @@ struct HomeView: View {
         withAnimation(animation) {
             displayMode = newMode
         }
+    }
+
+    private func openPendingOverviewIfUnlocked() {
+        guard isOverviewPending else { return }
+        isOverviewPending = false
+        guard subscriptions.isPremium else { return }
+        switchMode(to: .overview)
     }
 
     private func selectWordFromOverview(_ wordID: UUID) {
