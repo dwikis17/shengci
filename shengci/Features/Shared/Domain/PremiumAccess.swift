@@ -4,7 +4,7 @@ struct PremiumAccess {
     let isPremium: Bool
 
     func allowsHSKLevel(_ level: Int) -> Bool {
-        isPremium || level <= 2
+        isPremium || level <= 1
     }
 
     func allowsScanResult(hasUsedFreeResult: Bool) -> Bool {

@@ -17,7 +17,7 @@ struct shengciTests {
         let premium = PremiumAccess(isPremium: true)
 
         #expect(free.allowsHSKLevel(1))
-        #expect(free.allowsHSKLevel(2))
+        #expect(!free.allowsHSKLevel(2))
         #expect(!free.allowsHSKLevel(3))
         #expect(free.allowsScanResult(hasUsedFreeResult: false))
         #expect(!free.allowsScanResult(hasUsedFreeResult: true))

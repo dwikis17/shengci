@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf2ea">
+  <meta name="description" content="Get help with Shengci, the Chinese vocabulary learning app.">
+  <title>Shengci Support</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: #faf2ea;
+      --card: #fffcf7;
+      --text: #26211f;
+      --muted: #6e6661;
+      --accent: #3366cc;
+      --accent-soft: #e7eefc;
+      --border: rgba(38, 33, 31, .1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #1c1c1e;
+        --card: #2c2c2e;
+        --text: #f0ebe6;
+        --muted: #b9b1ac;
+        --accent: #6699ff;
+        --accent-soft: #263653;
+        --border: rgba(240, 235, 230, .14);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--background);
+      color: var(--text);
+      font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(720px, calc(100% - 40px)); margin: 0 auto; padding: 72px 0; }
+    .eyebrow { margin: 0 0 10px; color: var(--accent); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: .8rem; }
+    h1 { margin: 0; font-size: clamp(2.4rem, 8vw, 4.6rem); line-height: 1.05; letter-spacing: -.04em; }
+    .intro { margin: 22px 0 38px; color: var(--muted); font-size: 1.15rem; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    section, .contact { padding: 24px; border: 1px solid var(--border); border-radius: 22px; background: var(--card); }
+    h2 { margin: 0 0 8px; font-size: 1.15rem; }
+    p { margin: 0; }
+    .contact { margin-top: 16px; background: var(--accent-soft); border-color: transparent; }
+    .contact p + p { margin-top: 14px; }
+    a { color: var(--accent); font-weight: 650; }
+    footer { display: flex; gap: 18px; margin-top: 30px; color: var(--muted); font-size: .9rem; }
+    @media (max-width: 560px) {
+      main { padding: 46px 0; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Shengci 生词</p>
+    <h1>Chinese, one word at a time.</h1>
+    <p class="intro">Need help with Shengci? Find quick answers below or contact us directly.</p>
+
+    <div class="grid">
+      <section>
+        <h2>Text scanning</h2>
+        <p>Make sure Shengci has camera access in Settings. You can also choose a photo when live scanning is unavailable.</p>
+      </section>
+      <section>
+        <h2>Learning progress</h2>
+        <p>Your saved words and practice history are stored on your device and can sync through your private iCloud account.</p>
+      </section>
+      <section>
+        <h2>Subscriptions and purchases</h2>
+        <p>Purchases are managed by Apple. For billing, refunds, or cancellation, use your Apple ID purchase settings.</p>
+      </section>
+      <section>
+        <h2>Notifications</h2>
+        <p>Daily word reminders can be enabled or disabled in your device’s notification settings.</p>
+      </section>
+    </div>
+
+    <div class="contact">
+      <h2>Contact support</h2>
+      <p>Tell us what happened, which device you use, and your iOS version.</p>
+      <p><a href="mailto:dwikis17@gmail.com">dwikis17@gmail.com</a></p>
+    </div>
+
+    <footer>
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="terms.html">Terms and Conditions</a>
+    </footer>
+  </main>
+</body>
+</html>

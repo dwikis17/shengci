@@ -10,7 +10,10 @@ struct WordOverviewGrid: View {
     @State private var visibleIndex: Int
     @State private var lastScrubbedIndex: Int?
     @State private var lastScrubTimestamp = 0.0
+    @State private var lastVisibleUpdateTimestamp = 0.0
 
+    // ponytail: cap scrubber state updates at 30 Hz; exact word jumps stay available.
+    private let visibleUpdateInterval = 1.0 / 30.0
     private let columns = [
         GridItem(.adaptive(minimum: 95, maximum: 125), spacing: 12),
     ]
@@ -126,6 +129,7 @@ struct WordOverviewGrid: View {
                             onSelectWord(item.id)
                         }
                     )
+                    .equatable()
                     .id(item.id)
                 }
             }
@@ -201,8 +205,16 @@ struct WordOverviewGrid: View {
             (progress * Double(items.count - 1)).rounded()
         )
 
-        if index != visibleIndex {
-            visibleIndex = index
-        }
+        guard index != visibleIndex else { return }
+
+        let now = Date.timeIntervalSinceReferenceDate
+        guard
+            now - lastVisibleUpdateTimestamp >= visibleUpdateInterval
+                || progress <= 0
+                || progress >= 1
+        else { return }
+
+        lastVisibleUpdateTimestamp = now
+        visibleIndex = index
     }
 }

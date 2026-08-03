@@ -147,9 +147,9 @@ struct ContentView: View {
 
     private func resetLockedLevelIfNeeded() {
         guard subscriptions.hasLoaded, !subscriptions.isPremium,
-            selectedHSKLevel > 2
+            selectedHSKLevel > 1
         else { return }
-        selectedHSKLevel = 2
+        selectedHSKLevel = 1
     }
 }
 

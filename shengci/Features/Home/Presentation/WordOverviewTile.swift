@@ -87,3 +87,13 @@ struct WordOverviewTile: View {
         .accessibilityHint("Double tap to jump to this word")
     }
 }
+
+extension WordOverviewTile: Equatable {
+    static func == (lhs: WordOverviewTile, rhs: WordOverviewTile) -> Bool {
+        lhs.item.id == rhs.item.id
+            && lhs.item.simplified == rhs.item.simplified
+            && lhs.item.pinyin == rhs.item.pinyin
+            && lhs.isSelected == rhs.isSelected
+            && lhs.isSaved == rhs.isSaved
+    }
+}

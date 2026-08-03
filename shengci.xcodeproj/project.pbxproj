@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		3EA6695D04F5039F64A76CB2 /* Pods_shengciTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63C4EFF5A695C9025325E7B3 /* Pods_shengciTests.framework */; };
+		6466818430207E7C00F6E8BD /* shengci.icon in Resources */ = {isa = PBXBuildFile; fileRef = 6466818330207E7C00F6E8BD /* shengci.icon */; };
 		64C9250D301C461800417C9D /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 64C9250C301C461800417C9D /* RevenueCat */; };
 		64C9250F301C461800417C9D /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 64C9250E301C461800417C9D /* RevenueCatUI */; };
 		9320F5E530187A6B006A6FE4 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9320F5E430187A6B006A6FE4 /* WidgetKit.framework */; };
@@ -62,6 +63,7 @@
 		645904AD301794950042C61E /* shengci.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = shengci.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		645904BC301794960042C61E /* shengciTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = shengciTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		645904C6301794960042C61E /* shengciUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = shengciUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6466818330207E7C00F6E8BD /* shengci.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = shengci.icon; sourceTree = "<group>"; };
 		9320F5E330187A6B006A6FE4 /* shengciWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = shengciWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9320F5E430187A6B006A6FE4 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		9320F5E630187A6B006A6FE4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -184,6 +186,7 @@
 				645904AE301794950042C61E /* Products */,
 				733B4594D0AA3FE6765FB134 /* Pods */,
 				48A4A0D4B78FBC87DFF45BE9 /* Frameworks */,
+				6466818330207E7C00F6E8BD /* shengci.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -364,6 +367,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6466818430207E7C00F6E8BD /* shengci.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -654,7 +658,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 43538B6B5E0E2B264598057A /* Pods-shengci.debug.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = shengci;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = shengci/shengci.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -663,8 +667,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Configuration/Shengci-Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Shengci – Chinese HSK";
+				INFOPLIST_FILE = "Configuration/Shengci-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Shengci;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Shengci uses the camera to recognize Chinese text for dictionary lookup.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -680,12 +684,16 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.dwiki.shengci;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -693,7 +701,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9C134351E82D557A2714836C /* Pods-shengci.release.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = shengci;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = shengci/shengci.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -702,8 +710,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Configuration/Shengci-Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Shengci – Chinese HSK";
+				INFOPLIST_FILE = "Configuration/Shengci-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Shengci;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Shengci uses the camera to recognize Chinese text for dictionary lookup.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -719,12 +727,16 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.dwiki.shengci;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
